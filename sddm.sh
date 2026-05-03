@@ -7,13 +7,6 @@ SYSTEM_THEMES_DIR="/usr/share/sddm/themes"
 SDDM_CONF_DIR="/etc/sddm.conf.d"
 SDDM_CONF="$SDDM_CONF_DIR/theme.conf"
 
-# Check for Qt5 legacy themes
-if [ -d "$SCRIPT_DIR/themes-qt5" ]; then
-    # Define colors locally if not yet defined (they are defined below, but we can move this check after them)
-    # Moving the check after color definitions for better UI
-    :
-fi
-
 # Reset terminal colors on exit or crash
 trap 'echo -ne "\033[0m"' EXIT
 
@@ -76,15 +69,27 @@ fi
 
 success "Dependencies verified"
 
-# Check for Qt5 legacy themes
-if [ -d "$SCRIPT_DIR/themes-qt5" ]; then
-    echo -e "${C_YELLOW}${C_BOLD} ╭─ 󰓅 LEGACY THEMES DETECTED${C_RESET}"
-    echo -ne "${C_MAIN}${C_BOLD} ╰─ ${C_YELLOW}Use Qt5 compatible versions? (y/n): ${C_RESET}"
-    read -rp "" USE_QT5
-    if [[ "$USE_QT5" =~ ^[Yy]$ ]]; then
-        THEMES_DIR="$SCRIPT_DIR/themes-qt5"
-        substep "Using legacy directory: themes-qt5/"
+# Version selection
+info "Select SDDM Backend Version"
+substep "Modern SDDM versions run on Qt6, but some stable distros still use Qt5."
+substep "If you encounter 'import' errors, re-run this script and select Qt5."
+echo -e "${C_MAIN}${C_BOLD} │  ${C_ACCENT}1 ${C_DIM}❯ ${C_RESET}Qt6 (Modern / Default)"
+echo -e "${C_MAIN}${C_BOLD} │  ${C_ACCENT}2 ${C_DIM}❯ ${C_RESET}Qt5 (Legacy / Stable Distros)"
+echo -ne "${C_MAIN}${C_BOLD} ╰─ ${C_YELLOW}Choice [1/2]: ${C_RESET}"
+read -rp "" QT_CHOICE
+
+if [ "$QT_CHOICE" == "2" ]; then
+    info "Preparing Qt5 legacy environment..."
+    if [ ! -d "$SCRIPT_DIR/themes-qt5" ]; then
+        substep "Generating legacy themes (one-time process)..."
+        chmod +x "$SCRIPT_DIR/qt5.sh"
+        "$SCRIPT_DIR/qt5.sh" > /dev/null
     fi
+    THEMES_DIR="$SCRIPT_DIR/themes-qt5"
+    success "Switched to Qt5 themes"
+else
+    THEMES_DIR="$SCRIPT_DIR/themes"
+    substep "Using native Qt6 themes"
 fi
 
 # Check if themes directory exists
@@ -168,7 +173,7 @@ if [ "$SELECTED_THEME" == "Genshin" ]; then
     echo -e "${C_MAIN}${C_BOLD} │  ${C_ACCENT}3 ${C_DIM}❯ ${C_RESET}Manual selection"
     echo -ne "${C_MAIN}${C_BOLD} ╰─ ${C_YELLOW}Choice: ${C_RESET}"
     read -rp "" SUB_OPT
-
+    
     case $SUB_OPT in
         1)
             sed -i "s/^background_mode=.*/background_mode=time/" "$THEMES_DIR/$SELECTED_THEME/theme.conf"
@@ -264,7 +269,7 @@ if [ "$FONT_COUNT" -eq 0 ]; then
     echo -e "${C_YELLOW}${C_BOLD} ╭─   MISSING FONT DETECTED${C_RESET}"
     echo -e "${C_YELLOW}${C_BOLD} │${C_RESET}  ${C_DIM}This theme looks better with its specific font!${C_RESET}"
     echo -e "${C_YELLOW}${C_BOLD} │${C_RESET}  ${C_DIM}Please put the .ttf/.otf file in:${C_RESET}"
-    echo -e "${C_YELLOW}${C_BOLD} │${C_RESET}  ${C_ACCENT}$THEMES_DIR/$SELECTED_THEME/font/${C_RESET}"
+    echo -e "${C_YELLOW}${C_BOLD} │${C_ACCENT}$THEMES_DIR/$SELECTED_THEME/font/${C_RESET}"
     echo -e "${C_YELLOW}${C_BOLD} ╰─ ${C_DIM}Refer to README.md for font suggestions.${C_RESET}\n"
 fi
 

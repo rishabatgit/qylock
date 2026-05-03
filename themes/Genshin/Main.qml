@@ -6,12 +6,16 @@ import Qt.labs.folderlistmodel
 import SddmComponents 2.0
 
 Rectangle {
-    readonly property real s: (Screen.height / 768) * 0.75
     id: root
+    readonly property real s: (Screen.height / 768) * 0.75
     width: Screen.width
     height: Screen.height
     color: "#050a15"
     focus: true
+
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
     Keys.onReturnPressed: (event) => {
         if (!loginFormVisible) {
             loginFormVisible = true
@@ -27,14 +31,23 @@ Rectangle {
         }
     }
 
+    // State
     property real uiOpacity: 0
-    property int sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
-    property int userIndex: userModel.lastIndex >= 0 ? userModel.lastIndex : 0
-    property string activeUser: (userHelper.currentItem && userHelper.currentItem.uName) ? userHelper.currentItem.uName : userModel.lastUser
+    property int sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    property int userIndex: (typeof userModel !== "undefined" && userModel.lastIndex >= 0) ? userModel.lastIndex : 0
+    property string activeUser: ""
+    property string activeUserLogin: ""
+    
+    // Visibility
     property bool sessionPopupOpen: false
     property bool loginFormVisible: false
-    readonly property string activeUserLogin: (userHelper.currentItem && userHelper.currentItem.uLogin) ? userHelper.currentItem.uLogin : userModel.lastUser
 
+    Component.onCompleted: {
+        activeUser = (userHelper.currentItem && userHelper.currentItem.uName) ? userHelper.currentItem.uName : (typeof userModel !== "undefined" ? userModel.lastUser : "USER")
+        activeUserLogin = (userHelper.currentItem && userHelper.currentItem.uLogin) ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "USER")
+    }
+
+    // Background Profile
     readonly property string bgMode: config.background_mode || "time"
     readonly property string bgVideo: {
         if (bgMode === "static") {
@@ -52,11 +65,13 @@ Rectangle {
         }
     }
 
+    // Colors
     readonly property bool isDarkTheme: bgVideo === "night.mp4" || bgVideo === "dusk.mp4" || bgVideo === "dawn.mp4"
     readonly property color gTextMain: isDarkTheme ? "#ece5d8" : "#1a243d"
     readonly property color gTextDim: isDarkTheme ? "#88ffffff" : "#aa1a243d"
     readonly property color gGold: "#d3bc8e"
 
+    // Fonts
     FolderListModel {
         id: fontFolder
         folder: Qt.resolvedUrl("font")
@@ -65,23 +80,25 @@ Rectangle {
 
     FontLoader { id: mainFont; source: fontFolder.count > 0 ? "font/" + fontFolder.get(0, "fileName") : "" }
 
-    // Auto-focus fix for Quickshell (Loader does not propagate focus: true)
+    // Auto-focus
     Timer { interval: 300; running: true; onTriggered: passIn.forceActiveFocus() }
 
+    // Helpers
     ListView {
         id: sessionHelper
-        model: sessionModel; currentIndex: root.sessionIndex
+        model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex
         opacity: 0; width: 100; height: 100; z: -100
         delegate: Item { property string sName: model.name || "" }
     }
 
     ListView {
         id: userHelper
-        model: userModel; currentIndex: root.userIndex
+        model: typeof userModel !== "undefined" ? userModel : null; currentIndex: root.userIndex
         opacity: 0; width: 100; height: 100; z: -100
         delegate: Item { property string uName: model.realName || model.name || ""; property string uLogin: model.name || "" }
     }
 
+    // Engine
     Item {
         id: bgContainer
         anchors.fill: parent
@@ -131,13 +148,14 @@ Rectangle {
         }
     }
 
+    // Interface
     Item {
         id: mainUI
         anchors.fill: parent
         opacity: root.uiOpacity
         Component.onCompleted: NumberAnimation { target: root; property: "uiOpacity"; from: 0; to: 1; duration: 1200; easing.type: Easing.OutCubic }
 
-        // Top Left: Username
+        // Username
         Row {
             anchors.left: parent.left; anchors.leftMargin: 40 * s
             anchors.top: parent.top; anchors.topMargin: 40 * s
@@ -159,14 +177,15 @@ Rectangle {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (userModel && userModel.rowCount() > 0)
+                        if (typeof userModel !== "undefined" && userModel.rowCount() > 0) {
                             root.userIndex = (root.userIndex + 1) % userModel.rowCount()
+                        }
                     }
                 }
             }
         }
 
-        // Top Right: Clock
+        // Clock
         Column {
             anchors.right: parent.right; anchors.rightMargin: 40 * s
             anchors.top: parent.top; anchors.topMargin: 30 * s
@@ -216,13 +235,13 @@ Rectangle {
             }
         }
 
-        // Logo at the center
+        // Logo
         Image {
             id: centerLogo
             source: "logo.png"
             width: 380 * s; fillMode: Image.PreserveAspectFit
             anchors.centerIn: parent
-            anchors.verticalCenterOffset: -100 * s // Slightly higher than dead center
+            anchors.verticalCenterOffset: -100 * s 
             opacity: root.loginFormVisible ? 0 : 0.95
             layer.enabled: true
             layer.effect: DropShadow { radius: 15; color: "#aa000000"; samples: 24 }
@@ -230,7 +249,7 @@ Rectangle {
             visible: opacity > 0
         }
 
-        // Center-Bottom UI Area (Login)
+        // Action Menu
         Item {
             id: bottomUiContainer
             width: 600 * s; height: 350 * s
@@ -238,7 +257,7 @@ Rectangle {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 80 * s
 
-            // Divider / Ornament (Stays at bottom center)
+            // Ornament
             Item {
                 width: 480 * s; height: 10 * s
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -260,7 +279,6 @@ Rectangle {
                     }
                 }
                 
-                // Central Ornate Diamond
                 Rectangle {
                     width: 8 * s; height: 8 * s; rotation: 45
                     color: "#050a15"; border.color: "#d3bc8e"; border.width: 1 * s
@@ -272,12 +290,11 @@ Rectangle {
                     }
                 }
 
-                // Side dots
                 Rectangle { width: 2 * s; height: 2 * s; radius: 1; color: "#d3bc8e"; anchors.verticalCenter: parent.verticalCenter; anchors.horizontalCenterOffset: -40 * s; anchors.horizontalCenter: parent.horizontalCenter }
                 Rectangle { width: 2 * s; height: 2 * s; radius: 1; color: "#d3bc8e"; anchors.verticalCenter: parent.verticalCenter; anchors.horizontalCenterOffset: 40 * s; anchors.horizontalCenter: parent.horizontalCenter }
             }
 
-            // LOGIN SECTION
+            // Interface Content
             Item {
                 width: 600 * s; height: 200 * s
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -311,6 +328,7 @@ Rectangle {
                             cursorVisible: false; cursorDelegate: Item { width: 0; height: 0 }
                             selectionColor: root.gGold
                             property bool wasClicked: false
+                            onTextEdited: errText.text = ""
                             
                             Text {
                                 text: "ENTER PASSWORD"
@@ -333,14 +351,15 @@ Rectangle {
                             }
                             MouseArea { anchors.fill: parent; onClicked: { passIn.forceActiveFocus(); passIn.wasClicked = true } }
                             Keys.enabled: loginFormVisible
-                            Keys.onReturnPressed: if (loginFormVisible) sddm.login(activeUserLogin, passIn.text, root.sessionIndex)
-                            Keys.onEnterPressed: if (loginFormVisible) sddm.login(activeUserLogin, passIn.text, root.sessionIndex)
+                            Keys.onReturnPressed: { if (loginFormVisible && typeof sddm !== "undefined") sddm.login(activeUserLogin, passIn.text, root.sessionIndex) }
+                            Keys.onEnterPressed: { if (loginFormVisible && typeof sddm !== "undefined") sddm.login(activeUserLogin, passIn.text, root.sessionIndex) }
                         }
                     }
 
                     // Session Switcher
                     Item {
                         id: sessionBox
+                        visible: !root.isQuickshell
                         width: 460 * s; height: 44 * s
                         anchors.horizontalCenter: parent.horizontalCenter
 
@@ -350,7 +369,6 @@ Rectangle {
                             radius: 2 * s
                         }
 
-                        // Filled cream diamond with dark tick — left side
                         Item {
                             width: 28 * s; height: 28 * s
                             anchors.left: parent.left
@@ -372,9 +390,8 @@ Rectangle {
                             }
                         }
 
-                        // Session name — centered
                         Text {
-                            text: (sessionModel && sessionModel.count > root.sessionIndex && root.sessionIndex >= 0)
+                            text: (typeof sessionModel !== "undefined" && sessionModel.count > root.sessionIndex && root.sessionIndex >= 0)
                                   ? sessionHelper.currentItem.sName : "Select Realm"
                             anchors.centerIn: parent
                             font.family: mainFont.name
@@ -388,12 +405,27 @@ Rectangle {
                             onClicked: root.sessionPopupOpen = true
                         }
                     }
+
+                    // Error Message
+                    Text {
+                        id: errText
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: parent.width
+                        height: 15 * s
+                        verticalAlignment: Text.AlignBottom
+                        text: ""
+                        color: "#e64b4b"
+                        font.family: mainFont.name
+                        font.pixelSize: 12 * s
+                        font.letterSpacing: 2 * s
+                        horizontalAlignment: Text.AlignHCenter
+                    }
                 }
             }
         }
 
         
-        // Version Info
+        // Settings / Version
         Text {
             text: "OSRELWin3.2.0_R11611027_S11212885_D11643430"
             anchors.left: parent.left; anchors.leftMargin: 40 * s
@@ -401,7 +433,7 @@ Rectangle {
             font.family: mainFont.name; font.pixelSize: 11 * s; color: "white"; opacity: 0.8
         }
 
-        // CLICK TO BEGIN bar (Fading edges gradient)
+        // Tap Prompt
         Rectangle {
             id: clickToBeginBar
             width: parent.width; height: 34 * s
@@ -434,16 +466,14 @@ Rectangle {
             }
         }
 
-        // Power & System controls
+        // Commands
         Item {
             anchors.fill: parent
             
-            // Bottom Left: Power
             Rectangle {
                 width: 44 * s; height: 44 * s; radius: width/2; color: "white"
                 anchors.left: parent.left; anchors.leftMargin: 35 * s
                 anchors.bottom: parent.bottom; anchors.bottomMargin: 80 * s
-                
                 
                 Canvas {
                     anchors.fill: parent; anchors.margins: 10 * s
@@ -456,13 +486,12 @@ Rectangle {
                 }
                 MouseArea { 
                     id: pM; anchors.fill: parent; hoverEnabled: true
-                    onClicked: sddm.powerOff()
+                    onClicked: { if (typeof sddm !== "undefined") sddm.powerOff() }
                     cursorShape: Qt.PointingHandCursor 
                 }
                 layer.enabled: true; layer.effect: DropShadow { radius: 6; color: "#aa000000" }
             }
 
-            // Bottom Right: Reboot only
             Rectangle {
                 width: 44 * s; height: 44 * s; radius: width/2; color: "white"
                 anchors.right: parent.right; anchors.rightMargin: 35 * s
@@ -481,12 +510,10 @@ Rectangle {
                         var cx = width / 2;
                         var cy = height / 2;
                         
-                        // Circular Arrow
                         ctx.beginPath();
                         ctx.arc(cx, cy, r, -Math.PI * 0.1, Math.PI * 1.6);
                         ctx.stroke();
                         
-                        // Arrow Head
                         ctx.beginPath();
                         ctx.moveTo(cx + r - 4 * s, cy - 2 * s);
                         ctx.lineTo(cx + r, cy + 2 * s);
@@ -497,7 +524,7 @@ Rectangle {
 
                 MouseArea { 
                     id: rM; anchors.fill: parent; hoverEnabled: true
-                    onClicked: sddm.reboot()
+                    onClicked: { if (typeof sddm !== "undefined") sddm.reboot() }
                     cursorShape: Qt.PointingHandCursor 
                 }
                 layer.enabled: true; layer.effect: DropShadow { radius: 6; color: "#aa000000" }
@@ -505,6 +532,7 @@ Rectangle {
         }
     }
 
+    // Modal
     Item {
         id: popupOverlay
         anchors.fill: parent
@@ -535,7 +563,7 @@ Rectangle {
                     font.letterSpacing: 2 * s
                 }
                 ListView {
-                    width: parent.width; height: 300 * s; model: sessionModel; clip: true; spacing: 10 * s
+                    width: parent.width; height: 300 * s; model: typeof sessionModel !== "undefined" ? sessionModel : null; clip: true; spacing: 10 * s
                     delegate: Item {
                         width: parent.width; height: 54 * s
                         Rectangle {
@@ -561,5 +589,12 @@ Rectangle {
         }
     }
 
-    Connections { target: sddm; function onLoginFailed() { passIn.text = ""; passIn.forceActiveFocus() } }
+    Connections { 
+        target: typeof sddm !== "undefined" ? sddm : null 
+        function onLoginFailed() { 
+            errText.text = "ACCESS DENIED"
+            passIn.text = ""
+            passIn.forceActiveFocus() 
+        } 
+    }
 }

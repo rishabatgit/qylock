@@ -5,17 +5,20 @@ import Qt.labs.folderlistmodel
 import SddmComponents 2.0
 
 Rectangle {
-    readonly property real s: Screen.height / 768
     id: root
+    readonly property real s: Screen.height / 768
     width: Screen.width
     height: Screen.height
     color: "#0d1018"
 
-    // Theme Props
-    property int sessionIndex: (sessionModel && sessionModel.lastIndex >= 0)
-                               ? sessionModel.lastIndex : 0
-    property int userIndex: userModel.lastIndex >= 0 ? userModel.lastIndex : 0
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // State
+    property int sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    property int userIndex: (typeof userModel !== "undefined" && userModel.lastIndex >= 0) ? userModel.lastIndex : 0
     property real ui: 0
+    property string displayUserName: ""
 
     // Colors
     readonly property color sakuraPink:    "#d4849e"
@@ -26,7 +29,7 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
-    // Font Config
+    // Fonts
     FolderListModel {
         id: fontFolder
         folder: Qt.resolvedUrl("font")
@@ -35,29 +38,37 @@ Rectangle {
 
     FontLoader { id: orbitron; source: fontFolder.count > 0 ? "font/" + fontFolder.get(0, "fileName") : "" }
 
-    // Session Helper
+    // Models
     ListView {
         id: sessionHelper
-        model: sessionModel
+        model: typeof sessionModel !== "undefined" ? sessionModel : null
         currentIndex: root.sessionIndex
         visible: false; width: 0 * s; height: 0 * s
         delegate: Item { property string sName: model.name || "" }
     }
 
-    // User Helper
     ListView {
         id: userHelper
-        model: userModel
+        model: typeof userModel !== "undefined" ? userModel : null
         currentIndex: root.userIndex
         opacity: 0; width: 100 * s; height: 100 * s; z: -100
         delegate: Item { property string uName: model.realName || model.name || ""; property string uLogin: model.name || "" }
     }
 
-    // Auto-focus fix for Quickshell (Loader does not propagate focus: true)
+    // Auto Focus
     Timer { interval: 300; running: true; onTriggered: passwordField.forceActiveFocus() }
 
-    // Boot Anim
-    Component.onCompleted: fadeAnim.start()
+    // Boot
+    Component.onCompleted: {
+        fadeAnim.start()
+        if (userHelper.currentItem && userHelper.currentItem.uName) {
+            root.displayUserName = userHelper.currentItem.uName
+        } else if (typeof userModel !== "undefined" && userModel.lastUser) {
+            root.displayUserName = userModel.lastUser
+        } else {
+            root.displayUserName = "User"
+        }
+    }
     NumberAnimation {
         id: fadeAnim
         target: root; property: "ui"
@@ -65,9 +76,7 @@ Rectangle {
         easing.type: Easing.OutCubic
     }
 
-    // Theme Base
-
-    // Gradient
+    // Base
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
@@ -77,13 +86,11 @@ Rectangle {
         }
     }
 
-    // Video background
+    // Video
     Loader {
         anchors.fill: parent
         source: "BackgroundVideo.qml"
     }
-
-    // View FX
 
     // Vignette
     RadialGradient {
@@ -115,7 +122,7 @@ Rectangle {
         opacity: 0.5
     }
 
-    // Petal FX
+    // Effect
     Repeater {
         model: 18
         delegate: Item {
@@ -172,7 +179,7 @@ Rectangle {
         }
     }
 
-    // Clock Module
+    // Clock
     Column {
         anchors.left: parent.left
         anchors.top: parent.top
@@ -181,7 +188,6 @@ Rectangle {
         spacing: 6 * s
         opacity: root.ui
 
-        // Large clock
         Text {
             id: clockText
             text: Qt.formatTime(new Date(), "HH:mm")
@@ -196,10 +202,8 @@ Rectangle {
             }
         }
 
-        // Date row with a small decorative accent
         Row {
             spacing: 12 * s
-            // Sakura accent dot
             Rectangle {
                 width: 6 * s; height: 6 * s; radius: 3 * s
                 color: root.sakuraPink
@@ -222,7 +226,7 @@ Rectangle {
         }
     }
 
-    // Login Module
+    // Login
     Column {
         id: loginPanel
         anchors.bottom: parent.bottom
@@ -232,13 +236,11 @@ Rectangle {
         spacing: 0 * s
         opacity: root.ui
 
-        // User Section
+        // User
         Text {
             id: userNameText
             anchors.horizontalCenter: parent.horizontalCenter
-            text: (userHelper.currentItem && userHelper.currentItem.uName)
-                  ? userHelper.currentItem.uName
-                  : (userModel.lastUser || "User")
+            text: root.displayUserName
             color: root.mistWhite
             font.family: orbitron.name
             font.pixelSize: 18 * s
@@ -256,7 +258,7 @@ Rectangle {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    if (userModel && userModel.rowCount() > 0)
+                    if (typeof userModel !== "undefined" && userModel.rowCount() > 0)
                         uToggleAnim.start()
                 }
             }
@@ -267,7 +269,17 @@ Rectangle {
                     NumberAnimation { target: userNameText; property: "opacity"; to: 0; duration: 120; easing.type: Easing.InQuad }
                     NumberAnimation { target: uTrans; property: "x"; to: 15 * s; duration: 120; easing.type: Easing.InQuad }
                 }
-                ScriptAction { script: root.userIndex = (root.userIndex + 1) % userModel.rowCount() }
+                ScriptAction { 
+                    script: {
+                        root.userIndex = (root.userIndex + 1) % userModel.rowCount()
+                        if (userHelper.currentItem && userHelper.currentItem.uName) {
+                            root.displayUserName = userHelper.currentItem.uName
+                        } else if (userModel.get(root.userIndex)) {
+                            var u = userModel.get(root.userIndex)
+                            root.displayUserName = u.realName || u.name || "User"
+                        }
+                    } 
+                }
                 ParallelAnimation {
                     NumberAnimation { target: userNameText; property: "opacity"; to: 1; duration: 180; easing.type: Easing.OutQuad }
                     NumberAnimation { target: uTrans; property: "x"; to: 0; duration: 180; easing.type: Easing.OutQuad }
@@ -277,7 +289,7 @@ Rectangle {
 
         Item { width: 1 * s; height: 6 * s }
 
-        // Thin centered divider
+        // Divider
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 8 * s
@@ -288,13 +300,12 @@ Rectangle {
 
         Item { width: 1 * s; height: 22 * s }
 
-        // Password Section
+        // Password
         Item {
             width: parent.width
             height: 48 * s
             anchors.horizontalCenter: parent.horizontalCenter
 
-            // Backdrop
             Rectangle {
                 anchors.fill: parent
                 radius: 24 * s
@@ -308,7 +319,6 @@ Rectangle {
                 Behavior on color      { ColorAnimation { duration: 300 } }
             }
 
-            // Focus Indicator
             Rectangle {
                 anchors.left: parent.left
                 anchors.leftMargin: 18 * s
@@ -319,7 +329,6 @@ Rectangle {
                 Behavior on opacity { NumberAnimation { duration: 300 } }
             }
 
-            // Actual input
             TextInput {
                 id: passwordField
                 anchors.left: parent.left
@@ -336,8 +345,8 @@ Rectangle {
                 property bool wasClicked: false
                 Keys.onReturnPressed: doLogin()
                 Keys.onEnterPressed:  doLogin()
+                onTextEdited: errorMessage.text = ""
                 
-                // Visual representation row
                 Row {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
@@ -391,7 +400,6 @@ Rectangle {
                 }
             }
 
-            // Submit Button
             Item {
                 id: submitBtn
                 anchors.right: parent.right
@@ -435,10 +443,13 @@ Rectangle {
 
         Item { width: 1 * s; height: 10 * s }
 
-        // Error text
+        // Error
         Text {
             id: errorMessage
             anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width
+            height: 15 * s
+            verticalAlignment: Text.AlignBottom
             text: ""
             color: "#e08090"
             font.family: orbitron.name
@@ -448,7 +459,7 @@ Rectangle {
         }
     }
 
-    // Shake Animation
+    // Animation
     SequentialAnimation {
         id: shakeAnim
         NumberAnimation { target: loginPanel; property: "x"; to: loginPanel.x + 10; duration: 50 }
@@ -458,7 +469,7 @@ Rectangle {
         NumberAnimation { target: loginPanel; property: "x"; to: loginPanel.x;      duration: 50 }
     }
 
-    // Bottom Bar
+    // UI
     Rectangle {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 40 * s
@@ -478,8 +489,9 @@ Rectangle {
         height: 42 * s
         opacity: root.ui * 0.85
 
-        // Left: Session
+        // Session
         Item {
+            visible: !root.isQuickshell
             width: sessionSwitchRow.implicitWidth; height: sessionSwitchRow.implicitHeight
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
 
@@ -500,7 +512,7 @@ Rectangle {
                 }
                 Text {
                     id: sessionLabel
-                    text: (sessionModel && sessionModel.count > root.sessionIndex && root.sessionIndex >= 0)
+                    text: (typeof sessionModel !== "undefined" && sessionModel.count > root.sessionIndex && root.sessionIndex >= 0)
                           ? sessionHelper.currentItem.sName : "Session"
                     color: "white"; opacity: 0.6
                     font.family: orbitron.name; font.pixelSize: 11 * s; font.letterSpacing: 1 * s
@@ -514,7 +526,7 @@ Rectangle {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    if (sessionModel && sessionModel.rowCount() > 0)
+                    if (typeof sessionModel !== "undefined" && sessionModel.rowCount() > 0)
                         sToggleAnim.start()
                 }
             }
@@ -533,7 +545,7 @@ Rectangle {
             }
         }
 
-        // Right: Power
+        // Action
         Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -562,8 +574,10 @@ Rectangle {
                         onEntered: parent.opacity = 0.9
                         onExited:  parent.opacity = 0.4
                         onClicked: {
-                            if (d.act === 0) sddm.reboot()
-                            else             sddm.powerOff()
+                            if (typeof sddm !== "undefined") {
+                                if (d.act === 0) sddm.reboot()
+                                else             sddm.powerOff()
+                            }
                         }
                     }
                 }
@@ -571,13 +585,10 @@ Rectangle {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════
-    //  LOGIC
-    // ══════════════════════════════════════════════════════════════════
     Connections {
-        target: sddm
+        target: typeof sddm !== "undefined" ? sddm : null
         function onLoginFailed() {
-            errorMessage.text = "incorrect password"
+            errorMessage.text = "ACCESS DENIED"
             passwordField.text = ""
             passwordField.focus = true
             shakeAnim.start()
@@ -586,7 +597,7 @@ Rectangle {
 
     function doLogin() {
         var uname = (userHelper.currentItem && userHelper.currentItem.uLogin)
-                    ? userHelper.currentItem.uLogin : userModel.lastUser
-        sddm.login(uname, passwordField.text, root.sessionIndex)
+                    ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "")
+        if (typeof sddm !== "undefined") sddm.login(uname, passwordField.text, root.sessionIndex)
     }
 }

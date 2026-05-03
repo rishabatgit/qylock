@@ -10,7 +10,8 @@ Rectangle {
     height: Screen.height
     color: "#0c0a08"
 
-    property int sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+    property int sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     property int  userIndex:   userModel.lastIndex >= 0 ? userModel.lastIndex : 0
     property real ui: 0
 
@@ -27,11 +28,11 @@ Rectangle {
     FontLoader { id: pfSemi; source: "font/PixelifySans-Bold.ttf" }
     FontLoader { id: pfBold; source: "font/PixelifySans-Bold.ttf" }
 
-    ListView { id: sessionHelper; model: sessionModel; currentIndex: root.sessionIndex
+    ListView { id: sessionHelper; model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex
         visible: false; width: 100; height: 100
         delegate: Item { property string sName: model.name || "" }
     }
-    ListView { id: userHelper; model: userModel; currentIndex: root.userIndex
+    ListView { id: userHelper; model: typeof userModel !== "undefined" ? userModel : null; currentIndex: root.userIndex
         visible: false; width: 100; height: 100
         delegate: Item {
             property string uName:  model.realName || model.name || ""
@@ -206,7 +207,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter; anchors.verticalCenterOffset: -1 * s
                     color: root.textWhite
                     font.family: pfReg.name; font.pixelSize: 14 * s; font.letterSpacing: 3 * s
-                    echoMode: TextInput.Password; passwordCharacter: "─"
+                    echoMode: TextInput.Password; onTextEdited: err.text = ""; passwordCharacter: "─"
                     focus: true; clip: true
                     cursorVisible: false; cursorDelegate: Item { width: 0; height: 0 }
                     selectionColor: root.amberHot
@@ -366,7 +367,7 @@ Rectangle {
     }
 
     Connections {
-        target: sddm
+        target: typeof sddm !== "undefined" ? sddm : null
         function onLoginFailed() {
             errorMessage.text = "incorrect password"
             passwordField.text = ""; passwordField.focus = true; shakeAnim.start()

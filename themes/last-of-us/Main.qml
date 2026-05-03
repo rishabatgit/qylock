@@ -9,34 +9,39 @@ Item {
     height: 1080
     readonly property real s: Screen.height / 1080
 
-    // ── COLORS ──
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // Colors
     readonly property color textPrimary:   "#fffdf5"
     readonly property color textSecondary: "#a89e8d"
     readonly property color accent:        "#f7c594"
     readonly property color glassBg:       Qt.rgba(1, 1, 1, 0.035)
 
-    // ── STATE ──
-    property int  userIndex:    userModel.lastIndex >= 0 ? userModel.lastIndex : 0
-    property int  sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    // State
+    property int  userIndex:    (typeof userModel !== "undefined" && userModel.lastIndex >= 0) ? userModel.lastIndex : 0
+    property int  sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     property bool loginError:   false
     property bool userMenuOpen: false
 
-    // ── TYPOGRAPHY ──
+    // Fonts
     FolderListModel { id: fontFolder; folder: Qt.resolvedUrl("font"); nameFilters: ["*.ttf", "*.otf"] }
     FontLoader      { id: mainFont;  source: fontFolder.count > 0 ? "font/" + fontFolder.get(0, "fileName") : "" }
 
-    ListView { id: sessionHelper; model: sessionModel; currentIndex: root.sessionIndex; opacity: 0; width: 1; height: 1; z: -100; delegate: Item { property string sName: model.name || "" } }
-    ListView { id: userHelper;    model: userModel;    currentIndex: root.userIndex;    opacity: 0; width: 1; height: 1; z: -100; delegate: Item { property string uName: model.realName || model.name || ""; property string uLogin: model.name || "" } }
+    // Helpers
+    ListView { id: sessionHelper; model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex; opacity: 0; width: 1; height: 1; z: -100; delegate: Item { property string sName: model.name || "" } }
+    ListView { id: userHelper;    model: typeof userModel !== "undefined" ? userModel : null;    currentIndex: root.userIndex;    opacity: 0; width: 1; height: 1; z: -100; delegate: Item { property string uName: model.realName || model.name || ""; property string uLogin: model.name || "" } }
 
     function login() {
-        var n = (userHelper.currentItem && userHelper.currentItem.uName !== "") ? userHelper.currentItem.uLogin : (userModel.lastUser || "")
-        sddm.login(n, passInput.text, root.sessionIndex)
+        var n = (userHelper.currentItem && userHelper.currentItem.uName !== "") ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "")
+        if (typeof sddm !== "undefined") sddm.login(n, passInput.text, root.sessionIndex)
     }
 
     Connections {
-        target: sddm
+        target: typeof sddm !== "undefined" ? sddm : null
         function onLoginFailed() {
             root.loginError = true
+            errText.text = "ACCESS DENIED"
             passInput.text = ""
             errorShake.start()
             passInput.forceActiveFocus()
@@ -49,7 +54,7 @@ Item {
         onTriggered: passInput.forceActiveFocus() 
     }
 
-    // ── ENVIRONMENT ──
+    // Environment
     Rectangle { anchors.fill: parent; color: "#0a0a09"; z: -2000 }
     MediaPlayer { id: player; source: "bg.mp4"; videoOutput: bgVideo; loops: MediaPlayer.Infinite; Component.onCompleted: player.play() }
     VideoOutput { id: bgVideo; anchors.fill: parent; fillMode: VideoOutput.PreserveAspectCrop; z: -1000 }
@@ -64,7 +69,7 @@ Item {
         }
     }
 
-    // ── ATMOSPHERICS ──
+    // Effect
     Repeater {
         model: 24
         delegate: Item {
@@ -101,13 +106,13 @@ Item {
         }
     }
 
-    // ── MAIN UI ──
+    // Interface
     Item {
         id: uiContainer
         anchors.fill: parent; z: 10
         readonly property real leftPadding: 160 * s
 
-        // TOP CLOCK
+        // Clock
         Column {
             id: clockArea
             anchors.left: parent.left
@@ -149,7 +154,7 @@ Item {
             }
         }
 
-        // LOGIN PANEL
+        // Login
         Item {
             id: loginWrapper
             anchors.left: parent.left
@@ -169,7 +174,7 @@ Item {
                     Text { text: "CURRENT OPERATIVE"; font.family: mainFont.name; font.pixelSize: 10 * s; font.letterSpacing: 2 * s; color: root.textSecondary; opacity: 0.55 }
                     Text {
                         id: userNameDisplay
-                        text: (userHelper.currentItem && userHelper.currentItem.uName ? userHelper.currentItem.uName : "UNAUTHENTICATED").toUpperCase()
+                        text: ((userHelper.currentItem && userHelper.currentItem.uName) ? userHelper.currentItem.uName : (typeof userModel !== "undefined" && userModel.lastUser ? userModel.lastUser : "UNAUTHENTICATED")).toUpperCase()
                         font.family: mainFont.name
                         font.pixelSize: 40 * s
                         font.weight: Font.Bold
@@ -181,7 +186,7 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.userMenuOpen = !root.userMenuOpen 
+                            onClicked: { if (typeof userModel !== "undefined" && userModel.rowCount() > 0) root.userMenuOpen = !root.userMenuOpen }
                         }
                     }
                 }
@@ -211,6 +216,10 @@ Item {
                         cursorVisible: false
                         cursorDelegate: Item { width: 0; height: 0 }
                         onAccepted: root.login()
+                        onTextEdited: {
+                            root.loginError = false
+                            errText.text = ""
+                        }
                         property bool wasClicked: false
                         
                         Text { 
@@ -262,6 +271,18 @@ Item {
                         onClicked: { passInput.forceActiveFocus(); passInput.wasClicked = true } 
                     }
                 }
+                
+                Text {
+                    id: errText
+                    width: parent.width
+                    height: 15 * s
+                    verticalAlignment: Text.AlignBottom
+                    text: ""
+                    color: "#f06060"
+                    font.family: mainFont.name
+                    font.pixelSize: 12 * s
+                    font.letterSpacing: 2 * s
+                }
             }
 
             SequentialAnimation {
@@ -275,7 +296,7 @@ Item {
                 onStopped: root.loginError = false
             }
 
-            // REDESIGNED USER DIRECTORY (Repositioned to Gap)
+            // User Menu
             Item {
                 id: userMenu
                 anchors.left: parent.left
@@ -318,7 +339,7 @@ Item {
                             spacing: 10 * s; anchors.verticalCenter: parent.verticalCenter
                             Rectangle { width: 3 * s; height: 10 * s; color: root.accent; radius: 1; anchors.verticalCenter: parent.verticalCenter }
                             Text { 
-                                text: "OPERATIVE DIRECTORY // 0" + userModel.rowCount()
+                                text: "OPERATIVE DIRECTORY // 0" + (typeof userModel !== "undefined" ? userModel.rowCount() : "0")
                                 font.family: mainFont.name; font.pixelSize: 8 * s; font.letterSpacing: 3 * s; font.weight: Font.DemiBold
                                 color: root.accent; opacity: 0.8
                             }
@@ -327,14 +348,14 @@ Item {
 
                     Rectangle { width: parent.width - 40 * s; height: 1; color: root.accent; opacity: 0.12; anchors.topMargin: 2 * s }
 
-                    Item { width: parent.width; height: 10 * s } // Spacer
+                    Item { width: parent.width; height: 10 * s } 
 
                     Column {
                         width: parent.width - 40 * s
                         spacing: 6 * s
                         
                         Repeater {
-                            model: userModel
+                            model: typeof userModel !== "undefined" ? userModel : null
                             delegate: Item {
                                 width: parent.width
                                 height: 42 * s
@@ -385,7 +406,7 @@ Item {
             }
         }
 
-        // BOTTOMBAR
+        // Actions
         Row {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 140 * s
@@ -411,12 +432,19 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: modelData.act === 0 ? sddm.reboot() : sddm.powerOff() 
+                            onClicked: {
+                                if (typeof sddm !== "undefined") {
+                                    modelData.act === 0 ? sddm.reboot() : sddm.powerOff() 
+                                }
+                            }
                         }
                     }
                 }
             }
+
+            // Session
             Item {
+                visible: !root.isQuickshell
                 width: sessLayout.implicitWidth
                 height: parent.height
                 anchors.verticalCenter: parent.verticalCenter
@@ -447,7 +475,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: toggleAnim.start() 
+                    onClicked: { if (typeof sessionModel !== "undefined" && sessionModel.rowCount() > 0) toggleAnim.start() }
                 }
                 SequentialAnimation {
                     id: toggleAnim
@@ -455,7 +483,7 @@ Item {
                         NumberAnimation { target: sessText; property: "opacity"; to: 0; duration: 150 }
                         NumberAnimation { target: sessTrans; property: "x"; to: 10 * s; duration: 150 } 
                     }
-                    ScriptAction { script: { if (sessionModel && sessionModel.rowCount() > 0) root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount() } }
+                    ScriptAction { script: { root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount() } }
                     ParallelAnimation { 
                         NumberAnimation { target: sessText; property: "opacity"; to: 1; duration: 200 }
                         NumberAnimation { target: sessTrans; property: "x"; to: 0; duration: 200 } 

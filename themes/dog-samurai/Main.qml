@@ -9,22 +9,25 @@ Item {
     height: 1080
     readonly property real s: Screen.height / 1080
 
-    // ── COLORS ──
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // Colors
     readonly property color textPrimary:   "#f8f1e5"
     readonly property color textSecondary: "#8b949e"
     readonly property color accent:        "#ffb7c5"
     readonly property color accentGlow:    Qt.rgba(1, 0.72, 0.77, 0.4)
     readonly property color glassBg:       Qt.rgba(0.04, 0.05, 0.06, 0.8)
 
-    // ── STATE ──
-    property int  userIndex:    userModel.lastIndex >= 0 ? userModel.lastIndex : 0
-    property int  sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    // State
+    property int  userIndex:    (typeof userModel !== "undefined" && userModel.lastIndex >= 0) ? userModel.lastIndex : 0
+    property int  sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     property bool loginError:   false
     property bool userMenuOpen: false
     property bool isLoaded:     false
     property string displayUserName: ""
 
-    // ── TYPOGRAPHY ──
+    // Fonts
     FolderListModel {
         id: fontFolder
         folder: Qt.resolvedUrl("font")
@@ -35,9 +38,10 @@ Item {
         source: fontFolder.count > 0 ? "font/" + fontFolder.get(0, "fileName") : "" 
     }
 
+    // Models
     ListView {
         id: sessionHelper
-        model: sessionModel
+        model: typeof sessionModel !== "undefined" ? sessionModel : null
         currentIndex: root.sessionIndex
         opacity: 0
         width: 1
@@ -49,7 +53,7 @@ Item {
     }
     ListView {
         id: userHelper
-        model: userModel
+        model: typeof userModel !== "undefined" ? userModel : null
         currentIndex: root.userIndex
         opacity: 0
         width: 1
@@ -61,19 +65,26 @@ Item {
         } 
     }
 
+    // Login
     function login() {
-        var n = (userHelper.currentItem && userHelper.currentItem.uName !== "") ? userHelper.currentItem.uLogin : (userModel.lastUser || "")
-        sddm.login(n, passInput.text, root.sessionIndex)
+        var n = (userHelper.currentItem && userHelper.currentItem.uName !== "") ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "")
+        if (typeof sddm !== "undefined") sddm.login(n, passInput.text, root.sessionIndex)
     }
 
     Component.onCompleted: {
-        if (userHelper.currentItem) root.displayUserName = userHelper.currentItem.uName.toUpperCase()
+        if (userHelper.currentItem && userHelper.currentItem.uName) {
+            root.displayUserName = userHelper.currentItem.uName.toUpperCase()
+        } else if (typeof userModel !== "undefined" && userModel.lastUser) {
+            root.displayUserName = userModel.lastUser.toUpperCase()
+        } else {
+            root.displayUserName = "USER"
+        }
     }
 
     onUserIndexChanged: userTransition.start()
 
     Connections {
-        target: sddm
+        target: typeof sddm !== "undefined" ? sddm : null
         function onLoginFailed() {
             root.loginError = true
             passInput.text = ""
@@ -91,7 +102,7 @@ Item {
         }
     }
 
-    // ── ENVIRONMENT ──
+    // Background
     Rectangle {
         anchors.fill: parent
         color: "#0d1117"
@@ -111,6 +122,7 @@ Item {
         z: -1000
     }
 
+    // Overlay
     Rectangle {
         anchors.fill: parent
         z: -800
@@ -122,14 +134,14 @@ Item {
         }
     }
 
-    // ── MAIN INTERFACE ──
+    // UI
     Item {
         id: uiContainer
         anchors.fill: parent
         z: 10
         readonly property real sideMargin: 100 * s
 
-        // ZENITH HUD (Clock)
+        // Clock
         Item {
             anchors.left: parent.left
             anchors.leftMargin: uiContainer.sideMargin
@@ -184,7 +196,7 @@ Item {
             }
         }
 
-        // KINETIC BLADE (Login Panel)
+        // Panel
         Item {
             id: loginWrapper
             anchors.left: parent.left
@@ -203,6 +215,15 @@ Item {
                 NumberAnimation { duration: 800; easing.type: Easing.OutQuart }
             }
 
+            SequentialAnimation {
+                id: errorShake
+                NumberAnimation { target: loginWrapper; property: "anchors.leftMargin"; to: uiContainer.sideMargin - 15 * s; duration: 50; easing.type: Easing.InOutSine }
+                NumberAnimation { target: loginWrapper; property: "anchors.leftMargin"; to: uiContainer.sideMargin + 15 * s; duration: 50; easing.type: Easing.InOutSine }
+                NumberAnimation { target: loginWrapper; property: "anchors.leftMargin"; to: uiContainer.sideMargin; duration: 50; easing.type: Easing.InOutSine }
+                onStopped: root.loginError = false
+            }
+
+            // Outline
             Item {
                 anchors.fill: parent
                 Rectangle {
@@ -227,11 +248,13 @@ Item {
                 }
             }
 
+            // Elements
             Column {
                 anchors.fill: parent
                 anchors.margins: 40 * s
                 spacing: 35 * s
                 
+                // Switcher
                 Column {
                     width: parent.width
                     spacing: 10 * s
@@ -269,8 +292,12 @@ Item {
                                 }
                                 ScriptAction {
                                     script: {
-                                        if (userHelper.currentItem)
+                                        if (userHelper.currentItem && userHelper.currentItem.uName) {
                                             root.displayUserName = userHelper.currentItem.uName.toUpperCase()
+                                        } else if (typeof userModel !== "undefined" && userModel.get(root.userIndex)) {
+                                            var u = userModel.get(root.userIndex)
+                                            root.displayUserName = (u.realName || u.name || "USER").toUpperCase()
+                                        }
                                     }
                                 }
                                 ParallelAnimation {
@@ -313,6 +340,7 @@ Item {
                     }
                 }
 
+                // Input
                 Column {
                     width: parent.width
                     spacing: 12 * s
@@ -350,23 +378,29 @@ Item {
                                     pixelSize: 13 * s
                                     letterSpacing: 6 * s
                                 }
-                                color: root.textSecondary
-                                opacity: (passInput.text.length === 0 && !passInput.wasClicked) ? 0.35 : 0.0
+                                color: root.loginError ? "#ff4444" : root.textSecondary
+                                opacity: (passInput.text.length === 0 && !passInput.wasClicked) ? 0.8 : 0.0
                                 Behavior on opacity {
                                     NumberAnimation { duration: 300 }
                                 } 
+                                Behavior on color {
+                                    ColorAnimation { duration: 200 }
+                                }
                             }
                             Rectangle {
                                 id: cur
                                 width: 2 * s
                                 height: 20 * s
-                                color: root.accent
+                                color: root.loginError ? "#ff4444" : root.accent
                                 anchors.verticalCenter: parent.verticalCenter
                                 x: Math.max(0, passInput.cursorRectangle.x)
                                 visible: passInput.focus && passInput.wasClicked
                                 SequentialAnimation on opacity {
                                     loops: Animation.Infinite
                                     NumberAnimation { from: 1; to: 0; duration: 600 }
+                                }
+                                Behavior on color {
+                                    ColorAnimation { duration: 200 }
                                 }
                             }
                         }
@@ -410,7 +444,7 @@ Item {
                 }
             }
 
-            // USER SELECTOR (Pure Minimal Fade)
+            // Users
             Item {
                 id: dossierMenu
                 anchors.left: parent.right
@@ -423,7 +457,6 @@ Item {
                 opacity: root.userMenuOpen ? 1 : 0
                 visible: opacity > 0
                 
-                // Static position for clean fade
                 transform: Translate { x: 0 }
 
                 Behavior on opacity {
@@ -485,7 +518,7 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                         spacing: 8 * s
                         Repeater {
-                            model: userModel
+                            model: typeof userModel !== "undefined" ? userModel : null
                             delegate: Item {
                                 width: parent.width
                                 height: 46 * s
@@ -529,7 +562,7 @@ Item {
             }
         }
 
-        // NAV_BAR (Power & Session)
+        // Actions
         Item {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 80 * s
@@ -570,14 +603,21 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: modelData.act === 0 ? sddm.reboot() : sddm.powerOff()
+                            onClicked: {
+                                if (typeof sddm !== "undefined") {
+                                    if (modelData.act === 0) sddm.reboot()
+                                    else sddm.powerOff()
+                                }
+                            }
                         }
                     }
                 }
             }
             
+            // Session
             Item {
                 id: sessContainer
+                visible: !root.isQuickshell
                 width: sessLayout.implicitWidth
                 height: 40 * s
                 anchors.left: powerActions.right
@@ -635,7 +675,7 @@ Item {
                         NumberAnimation { target: sessTrans; property: "x"; to: 12 * s; duration: 150 }
                     }
                     ScriptAction {
-                        script: { if (sessionModel && sessionModel.rowCount() > 0) root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount() }
+                        script: { if (typeof sessionModel !== "undefined" && sessionModel.rowCount() > 0) root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount() }
                     }
                     ParallelAnimation {
                         NumberAnimation { target: sessText; property: "opacity"; to: 1; duration: 200 }

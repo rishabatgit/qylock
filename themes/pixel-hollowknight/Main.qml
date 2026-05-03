@@ -7,7 +7,8 @@ import SddmComponents 2.0
 Rectangle {
     readonly property real s: Screen.height / 768
     id: root; width: Screen.width; height: Screen.height; color: "#050505"
-    property int sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+    property int sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     property int userIndex: userModel.lastIndex >= 0 ? userModel.lastIndex : 0
     property real ui: 0
 
@@ -16,10 +17,10 @@ Rectangle {
 
     FolderListModel { id: fontFolder; folder: Qt.resolvedUrl("font"); nameFilters: ["*.ttf", "*.otf"] }
     FontLoader { id: pf; source: fontFolder.count > 0 ? "font/" + fontFolder.get(0, "fileName") : "" }
-    ListView { id: sessionHelper; model: sessionModel; currentIndex: root.sessionIndex; opacity: 0; width: 100; height: 100; z: -100
+    ListView { id: sessionHelper; model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex; opacity: 0; width: 100; height: 100; z: -100
         delegate: Item { property string sName: model.name || "" }
     }
-    ListView { id: userHelper; model: userModel; currentIndex: root.userIndex; opacity: 0; width: 100; height: 100; z: -100
+    ListView { id: userHelper; model: typeof userModel !== "undefined" ? userModel : null; currentIndex: root.userIndex; opacity: 0; width: 100; height: 100; z: -100
         delegate: Item { property string uName: model.realName || model.name || ""; property string uLogin: model.name || "" }
     }
     
@@ -75,7 +76,7 @@ Rectangle {
             Column {
                 anchors.centerIn: parent; spacing: 16 * s; width: 260 * s
                 Text { text: ((userHelper.currentItem && userHelper.currentItem.uName) ? userHelper.currentItem.uName : (userModel.lastUser || "User")).toUpperCase(); color: "white"; font.family: pf.name; font.pixelSize: 16 * s; font.letterSpacing: 6 * s; anchors.horizontalCenter: parent.horizontalCenter
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (userModel && userModel.rowCount() > 0) root.userIndex = (root.userIndex + 1) % userModel.rowCount() } } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (typeof userModel !== "undefined" && userModel.rowCount() > 0) root.userIndex = (root.userIndex + 1) % userModel.rowCount() } } }
                 
                 Item {
                     width: parent.width; height: 36 * s
@@ -83,7 +84,7 @@ Rectangle {
                     Rectangle { anchors.fill: parent; color: "transparent"; border.color: root.lantern; border.width: 1 * s; opacity: pwd.activeFocus ? 1.0 : 0.0; Behavior on opacity { NumberAnimation { duration: 300 } } }
                     TextInput {
                         id: pwd; anchors.fill: parent; color: root.lantern; font.family: pf.name; font.pixelSize: 14 * s; font.letterSpacing: 4 * s
-                        echoMode: TextInput.Password; passwordCharacter: "x"; focus: true; clip: true; horizontalAlignment: TextInput.AlignHCenter; verticalAlignment: TextInput.AlignVCenter
+                        echoMode: TextInput.Password; onTextEdited: err.text = ""; passwordCharacter: "x"; focus: true; clip: true; horizontalAlignment: TextInput.AlignHCenter; verticalAlignment: TextInput.AlignVCenter
                         cursorVisible: false; cursorDelegate: Item { width: 0; height: 0 }
                         selectionColor: root.lore
                         property bool wasClicked: false
@@ -116,7 +117,7 @@ Rectangle {
                         }
                     }
                 }
-                Text { id: err; text: ""; color: "#cc2222"; anchors.horizontalCenter: parent.horizontalCenter; font.family: pf.name; font.pixelSize: 10 * s }
+                Text { id: err; text: ""; height: 12 * s; verticalAlignment: Text.AlignBottom; color: "#cc2222"; anchors.horizontalCenter: parent.horizontalCenter; font.family: pf.name; font.pixelSize: 10 * s }
             }
         }
     }
@@ -134,6 +135,7 @@ Rectangle {
         Repeater {
             model: [{l: "RESTART", a: 0}, {l: "SHUT DOWN", a: 1}]
             delegate: Item {
+                visible: modelData.a === 2 ? !root.isQuickshell : true
                 width: pmt.implicitWidth + 24 * s; height: 28 * s
                 Text { id: pmt; anchors.centerIn: parent; text: modelData.l; color: pm.containsMouse ? root.lantern : root.lore; opacity: pm.containsMouse ? 1.0 : 0.5; font.family: pf.name; font.pixelSize: 10 * s; font.letterSpacing: 4 * s; Behavior on color { ColorAnimation { duration: 150 } } Behavior on opacity { NumberAnimation { duration: 150 } } }
                 MouseArea { id: pm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (modelData.a === 0) sddm.reboot(); else if (modelData.a === 1) sddm.powerOff() } }
@@ -142,8 +144,8 @@ Rectangle {
     }
 
     Connections {
-        target: sddm
-        function onLoginFailed() { err.text = "SHADE DENIED"; pwd.text = ""; pwd.focus = true }
+        target: typeof sddm !== "undefined" ? sddm : null
+        function onLoginFailed() { err.text = "ACCESS DENIED"; pwd.text = ""; pwd.focus = true }
     }
-    function doLogin() { var u = (userHelper.currentItem && userHelper.currentItem.uLogin) ? userHelper.currentItem.uLogin : userModel.lastUser; sddm.login(u, pwd.text, root.sessionIndex) }
+    function doLogin() { var u = (userHelper.currentItem && userHelper.currentItem.uLogin) ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : ""); if (typeof sddm !== "undefined") sddm.login(u, pwd.text, root.sessionIndex) }
 }

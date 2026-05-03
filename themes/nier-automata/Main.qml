@@ -11,7 +11,7 @@ Rectangle {
     height: Screen.height
     color:  "#c0bc9e"
 
-    // ── Palette ──────────────────────────────────────────────────────────────
+    // Colors
     readonly property color nierBg:        "#c0bc9e"
     readonly property color nierDarker:    "#1a1814"
     readonly property color nierBorder:    "#706c58"
@@ -22,7 +22,10 @@ Rectangle {
     property color nierTextMid:    "#706c58"
     property color nierSelected:   "#3e3c33"
 
-    // Dynamic property for scanner animation
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // Effect
     property real scanPos: 0
     NumberAnimation {
         target: root; property: "scanPos"; from: 0; to: 1; duration: 4000; loops: Animation.Infinite; running: true
@@ -32,7 +35,7 @@ Rectangle {
     property real  panelOffset:  40 * s
     property real  brandReveal:  0
     
-    property int   sessionIndex: (sessionModel && sessionModel.lastIndex >= 0)
+    property int   sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0)
                                  ? sessionModel.lastIndex : 0
     property string currentTime: Qt.formatTime(new Date(), "hh:mm")
     property string currentDate: Qt.formatDate(new Date(), "yyyy.MM.dd")
@@ -63,7 +66,7 @@ Rectangle {
 
     ListView {
         id: sessionHelper
-        model: sessionModel; currentIndex: root.sessionIndex
+        model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex
         visible: false; width: 0; height: 0
         delegate: Item { property string sName: model.name || "" }
     }
@@ -436,8 +439,8 @@ Rectangle {
                 anchors.bottom: missionBlock.top; anchors.bottomMargin: 24 * s
                 anchors.left:   parent.left;    anchors.leftMargin: 0
                 anchors.right:  parent.right
-                model:        userModel
-                currentIndex: userModel.lastIndex
+                model: typeof userModel !== "undefined" ? userModel : null
+                currentIndex: typeof userModel !== "undefined" ? userModel.lastIndex : 0
                 clip: true; spacing: 0; focus: true
                 keyNavigationEnabled: true
 
@@ -669,7 +672,7 @@ Rectangle {
                 // ── Authentication panel ─────────────────────────────────────
                 Rectangle {
                     id: authBox
-                    width: parent.width; height: 60 * s
+                    width: parent.width; height: 75 * s
                     color: "transparent"; border.color: root.nierBorder; border.width: 1
                     Rectangle {
                         id: authHdr; width: parent.width; height: 24 * s; color: root.nierDark
@@ -687,7 +690,8 @@ Rectangle {
                             font.letterSpacing: 4 * s
                             property bool wasClicked: false
                             Text { text: "Passphrase..."; opacity: parent.text.length === 0 ? 1 : 0; Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutSine } } color: root.nierBorder; font.family: root.fontName; font.pixelSize: 11 * s; font.letterSpacing: 1.5 * s; anchors.verticalCenter: parent.verticalCenter; anchors.verticalCenterOffset: -3 * s }
-                            Keys.onPressed: { if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) doLogin(); else if (event.key === Qt.Key_Tab) { event.accepted = true; if (sessionModel && sessionModel.rowCount() > 0) root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount(); } else if (event.key === Qt.Key_Up) { event.accepted = true; userList.currentIndex = Math.max(0, userList.currentIndex - 1); } else if (event.key === Qt.Key_Down) { event.accepted = true; userList.currentIndex = Math.min(userList.model.count - 1, userList.currentIndex + 1); } }
+                            onTextEdited: errText.text = ""
+                            Keys.onPressed: { if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) doLogin(); else if (event.key === Qt.Key_Tab) { event.accepted = true; if (typeof sessionModel !== "undefined" && sessionModel.rowCount() > 0) root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount(); } else if (event.key === Qt.Key_Up) { event.accepted = true; userList.currentIndex = Math.max(0, userList.currentIndex - 1); } else if (event.key === Qt.Key_Down) { event.accepted = true; userList.currentIndex = Math.min(userList.model.count - 1, userList.currentIndex + 1); } }
                             Rectangle {
                                 id: customCursor
                                 width: 8 * s; height: 2 * s
@@ -728,6 +732,13 @@ Rectangle {
                             MouseArea { id: subMa; anchors.fill: parent; hoverEnabled: true; onClicked: doLogin() } 
                         }
                     }
+                    Text {
+                        id: errText
+                        anchors.bottom: parent.bottom; anchors.bottomMargin: 2 * s
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        height: 10 * s; verticalAlignment: Text.AlignBottom
+                        text: ""; color: "#ff4444"; font.family: root.fontName; font.pixelSize: 8 * s; font.letterSpacing: 2
+                    }
                 }
 
                 Column {
@@ -758,13 +769,14 @@ Rectangle {
 
                             MouseArea { 
                                 id: bMa; anchors.fill: parent; hoverEnabled: true 
-                                onClicked: { if (modelData.action === "off") sddm.powerOff(); else if (modelData.action === "reboot") sddm.reboot(); } 
+                                onClicked: { if (typeof sddm !== "undefined") { if (modelData.action === "off") sddm.powerOff(); else if (modelData.action === "reboot") sddm.reboot(); } } 
                             }
                         }
                     }
 
                     // Session Dropdown
                     Item {
+                        visible: !root.isQuickshell
                         width: parent.width; height: 32 * s
                         z: 10 // Ensure this container can overlap others if needed
                         
@@ -1058,12 +1070,24 @@ Rectangle {
         }
     }
 
-    // ── Login helper function ─────────────────────────────────────────────────
+    // Action
     function doLogin() {
-        var uname = userList.model.data(
-            userList.model.index(userList.currentIndex, 0),
-            Qt.UserRole + 1
-        )
-        sddm.login(uname, pwInput.text, root.sessionIndex)
+        var uname = ""
+        if (typeof userModel !== "undefined") {
+            uname = userList.model.data(
+                userList.model.index(userList.currentIndex, 0),
+                Qt.UserRole + 1
+            )
+        }
+        if (typeof sddm !== "undefined") sddm.login(uname, pwInput.text, root.sessionIndex)
+    }
+
+    Connections {
+        target: typeof sddm !== "undefined" ? sddm : null
+        function onLoginFailed() {
+            errText.text = "ACCESS DENIED"
+            pwInput.text = ""
+            pwInput.forceActiveFocus()
+        }
     }
 }

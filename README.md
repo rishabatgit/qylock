@@ -161,20 +161,20 @@ To keep the download size small, some videos are compressed. For the full 4K/HD 
 
 <br>
 
-#### 🛠️ Themes not loading (library import version error fix)?
+#### 🛠️ Themes not loading (library import version error)?
 > [!NOTE]
-> This error happens because many stable distributions still use the **Qt5-based** version of SDDM for system stability. Since these themes are native Qt6, they require a quick conversion to work on those legacy systems.
-These themes are built for **Qt6**. If your distribution uses a Qt5-based version of SDDM, you can run the included `qt5.sh` script to create a legacy-compatible **`themes-qt5/`** folder:
+> This error typically occurs because many stable distributions (like Debian or older Fedora versions) still use the **Qt5-based** version of SDDM. Since these themes are written in native Qt6 for modern systems, they require a specific transpilation step to work on legacy backends.
 
-| | Packages (Qt5 Legacy) |
+If you encounter library errors at the login screen:
+1. Re-run the installation script: `./sddm.sh`.
+2. When prompted, select the **Qt5 (Legacy)** option.
+3. The script will automatically convert the themes and install the compatible versions for you.
+
+| | Required Packages (Qt5 Legacy Mode) |
 |--:|:---|
 | **Core** | `sddm` `qt5-declarative` `qt5-graphicaleffects` `qt5-quickcontrols2` |
-| **Video** | `qt5-multimedia` `gst-plugins-base` `gst-plugins-good` `gst-plugins-bad` `gst-plugins-ugly` |
-| **Script** | `perl` |
-
-```sh
-chmod +x qt5.sh && ./qt5.sh
-```
+| **Video**| `qt5-multimedia` `gst-plugins-base` `gst-plugins-good` `gst-plugins-bad` `gst-plugins-ugly` |
+| **Tools**| `perl` |
 
 <br>
 

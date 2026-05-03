@@ -3,57 +3,49 @@ import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
 import QtMultimedia
 import Qt.labs.folderlistmodel
+import SddmComponents 2.0
 
 Item {
     id: root
-    width: 1920
-    height: 1080
-    readonly property real s: width / 1920
+    width: Screen.width; height: Screen.height
+    readonly property real s: height / 1080
 
-    // Theme Palette
+    // Colors
     readonly property color fg:         "#fdfaf2" 
     readonly property color gold:       "#c9a063" 
     readonly property color orbitClr:    "#ffffff" 
     
-    // Core State
-    property int  userIndex:    userModel.lastIndex >= 0 ? userModel.lastIndex : 0
-    property int  sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // State
+    property int  userIndex:    (typeof userModel !== "undefined" && userModel.lastIndex >= 0) ? userModel.lastIndex : 0
+    property int  sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     property bool sessionMenuOpen: false
     property bool interactionMode: false 
+
+    TextConstants { id: textConstants }
 
     FontLoader {
         id: titleFont
         source: "font/Cinzel-Bold.ttf"
     }
 
+    // Helpers
     ListView { 
-        id: sessionHelper; model: sessionModel; currentIndex: root.sessionIndex; opacity: 0; width: 1; height: 1; z: -100
-        delegate: Item { property string sName: (model && model.name) ? model.name : "" }
+        id: sessionHelper; model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex; opacity: 0; width: 1; height: 1; z: -100
+        delegate: Item { property string sName: model.name || "" }
     }
     
     ListView { 
-        id: userHelper; model: userModel; currentIndex: root.userIndex; opacity: 0; width: 1; height: 1; z: -100
+        id: userHelper; model: typeof userModel !== "undefined" ? userModel : null; currentIndex: root.userIndex; opacity: 0; width: 1; height: 1; z: -100
         delegate: Item { 
-            property string uName: (model && (model.realName || model.name)) ? (model.realName || model.name) : ""
-            property string uLogin: (model && model.name) ? model.name : "" 
+            property string uName: model.realName || model.name || ""
+            property string uLogin: model.name || "" 
         } 
     }
 
-    function login() {
-        var n = (userHelper.currentItem && userHelper.currentItem.uName !== "") ? userHelper.currentItem.uLogin : userModel.lastUser
-        sddm.login(n, passInput.text, root.sessionIndex)
-    }
-
-    function startInteraction() {
-        root.interactionMode = true
-        passInput.focus = true
-    }
-
-    function toggleUser() {
-        root.userIndex = (root.userIndex + 1) % userModel.count
-    }
-
-    // Video Background
+    // Background
     Rectangle { anchors.fill: parent; color: "#000000"; z: -1000 }
     
     MediaPlayer { 
@@ -71,7 +63,7 @@ Item {
         Behavior on opacity { NumberAnimation { duration: 800; easing.type: Easing.InOutQuad } }
     }
 
-    // Top Clock
+    // Clock
     Item {
         id: cornerClock
         anchors.left: parent.left; anchors.leftMargin: 80 * s
@@ -101,16 +93,16 @@ Item {
         }
     }
 
-    // Logo Center
+    // Logo
     Image {
         id: mainLogo
         source: "logo.png"
         width: 650 * s; fillMode: Image.PreserveAspectFit; anchors.centerIn: parent
-        opacity: (root.interactionMode) ? 0.15 : 1.0; z: 100
+        opacity: root.interactionMode ? 0.15 : 1.0; z: 100
         Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.InOutQuad } }
     }
 
-    // Console Cluster
+    // Interface
     Item {
         id: promptZone
         anchors.bottom: parent.bottom; anchors.bottomMargin: 150 * s
@@ -153,7 +145,6 @@ Item {
             anchors.fill: parent; opacity: root.interactionMode ? 1.0 : 0; visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 400 } }
 
-            // User Toggle
             Item {
                 id: userSwitcher
                 anchors.top: parent.top; anchors.horizontalCenter: parent.horizontalCenter
@@ -178,11 +169,11 @@ Item {
                         id: passInput; width: contentWidth + 10; height: parent.height; anchors.centerIn: parent
                         verticalAlignment: TextInput.AlignVCenter; horizontalAlignment: TextInput.AlignLeft
                         echoMode: TextInput.Password; passwordCharacter: "✦"; font.family: titleFont.name; font.pixelSize: 32 * s; font.letterSpacing: 15 * s; color: root.fg
-                        selectionColor: root.gold
+                        selectionColor: root.gold; onTextEdited: errText.text = ""
                         cursorVisible: false; cursorDelegate: Item { width: 0; height: 0 }
-                        onAccepted: if (root.interactionMode) root.login()
-                        Keys.onReturnPressed: (event) => { if (root.interactionMode) { root.login(); event.accepted = true } }
-                        Keys.onEnterPressed: (event) => { if (root.interactionMode) { root.login(); event.accepted = true } }
+                        onAccepted: doLogin()
+                        Keys.onReturnPressed: (event) => { if (root.interactionMode) { doLogin(); event.accepted = true } }
+                        Keys.onEnterPressed: (event) => { if (root.interactionMode) { doLogin(); event.accepted = true } }
                         onActiveFocusChanged: { if (!activeFocus && text.length === 0) { root.interactionMode = false; wasClicked = false } }
                         property bool wasClicked: false
                         
@@ -196,26 +187,24 @@ Item {
                                 NumberAnimation { target: cursorRect; property: "opacity"; from: 0.1; to: 1; duration: 450 }
                             }
                         }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                passInput.forceActiveFocus()
-                                passInput.wasClicked = true
-                            }
-                        }
+                        MouseArea { anchors.fill: parent; onClicked: { passInput.forceActiveFocus(); passInput.wasClicked = true } }
                     }
                 }
                 Rectangle { width: 350 * s; height: 1.2 * s; color: root.gold; opacity: 0.5; anchors.horizontalCenter: parent.horizontalCenter }
+                Text {
+                    id: errText; height: 15 * s; verticalAlignment: Text.AlignTop
+                    text: ""; color: "#ff4444"; font.family: titleFont.name; font.pixelSize: 14 * s; font.letterSpacing: 2 * s; anchors.horizontalCenter: parent.horizontalCenter
+                }
             }
         }
     }
 
-    // Left Session
+    // Sessions
     Item {
         id: sessionGroup
         anchors.left: parent.left; anchors.leftMargin: 100 * s
         anchors.bottom: parent.bottom; anchors.bottomMargin: 80 * s
-        width: 350 * s; height: 50 * s; z: 2000
+        width: 350 * s; height: 50 * s; z: 2000; visible: !root.isQuickshell
         opacity: root.interactionMode ? 0.3 : 1.0
         Behavior on opacity { NumberAnimation { duration: 600 } }
 
@@ -246,31 +235,19 @@ Item {
             id: sMenu
             anchors.bottom: parent.top; anchors.bottomMargin: 20 * s
             anchors.left: parent.left; width: 320 * s
-            height: root.sessionMenuOpen ? (40 * s * sessionModel.count) + 20 : 0; clip: true
+            height: root.sessionMenuOpen ? (40 * s * (typeof sessionModel !== "undefined" ? sessionModel.rowCount() : 0)) + 20 : 0; clip: true
             Behavior on height { NumberAnimation { duration: 400; easing.type: Easing.OutExpo } }
             
-            Rectangle { 
-                anchors.fill: parent
-                color: "#111111"
-                opacity: 0.6
-                radius: 4 * s
-                layer.enabled: true
-                layer.effect: DropShadow { color: "#aa000000"; radius: 15 }
-            }
-            
+            Rectangle { anchors.fill: parent; color: "#111111"; opacity: 0.6; radius: 4 * s; layer.enabled: true; layer.effect: DropShadow { color: "#aa000000"; radius: 15 } }
             Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 1.2 * s; color: root.gold; opacity: 0.4 }
             
             Column {
                 anchors.fill: parent; anchors.leftMargin: 15 * s; anchors.topMargin: 10 * s; spacing: 8 * s
                 Repeater {
-                    model: sessionModel
+                    model: typeof sessionModel !== "undefined" ? sessionModel : null
                     delegate: Item {
                         width: 280 * s; height: 32 * s; property bool itemHover: mMa.containsMouse
-                        Text {
-                            text: "✦"; font.pixelSize: 12 * s; color: root.gold; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                            opacity: (root.sessionIndex === index || itemHover) ? 1.0 : 0
-                            Behavior on opacity { NumberAnimation { duration: 200 } }
-                        }
+                        Text { text: "✦"; font.pixelSize: 12 * s; color: root.gold; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; opacity: (root.sessionIndex === index || itemHover) ? 1.0 : 0; Behavior on opacity { NumberAnimation { duration: 200 } } }
                         Text {
                             text: model.name.toUpperCase(); font.family: titleFont.name; font.pixelSize: 14 * s; font.letterSpacing: 2 * s
                             color: root.fg; opacity: (root.sessionIndex === index || itemHover) ? 1.0 : 0.4
@@ -284,7 +261,7 @@ Item {
         }
     }
 
-    // Right System
+    // System
     Row {
         id: sysCommands
         anchors.right: parent.right; anchors.rightMargin: 100 * s
@@ -294,10 +271,7 @@ Item {
         Behavior on opacity { NumberAnimation { duration: 600 } }
 
         Repeater {
-            model: [
-                { id: "restart", text: "REBOOT",  action: function() { sddm.reboot() } },
-                { id: "power",   text: "SHUTDOWN", action: function() { sddm.powerOff() } }
-            ]
+            model: [{ id: "restart", text: "REBOOT", action: "reboot" }, { id: "power", text: "SHUTDOWN", action: "powerOff" }]
             delegate: Item {
                 width: 200 * s; height: 40 * s
                 Text {
@@ -314,30 +288,28 @@ Item {
                     Behavior on opacity { NumberAnimation { duration: 350 } }
                     Behavior on anchors.rightMargin { NumberAnimation { duration: 450; easing.type: Easing.OutCubic } }
                 }
-                MouseArea { id: bMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: modelData.action() }
+                MouseArea { id: bMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (typeof sddm !== "undefined") sddm[modelData.action]() } }
             }
         }
     }
 
+    // Action
+    function doLogin() {
+        if (!root.interactionMode) return
+        var n = (userHelper.currentItem && userHelper.currentItem.uName !== "") ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "")
+        if (typeof sddm !== "undefined") sddm.login(n, passInput.text, root.sessionIndex)
+    }
+
+    function startInteraction() { root.interactionMode = true; passInput.forceActiveFocus() }
+    function toggleUser() { if (typeof userModel !== "undefined" && userModel.rowCount() > 0) root.userIndex = (root.userIndex + 1) % userModel.rowCount() }
+
+    Connections {
+        target: typeof sddm !== "undefined" ? sddm : null
+        function onLoginFailed() { errText.text = "ACCESS DENIED"; passInput.text = ""; passInput.forceActiveFocus() }
+    }
+
     focus: true
-    Keys.onReturnPressed: (event) => {
-        if (!root.interactionMode) {
-            root.startInteraction()
-            event.accepted = true
-        }
-    }
-    Keys.onEnterPressed: (event) => {
-        if (!root.interactionMode) {
-            root.startInteraction()
-            event.accepted = true
-        }
-    }
-    Keys.onPressed: (event) => {
-        if (!root.interactionMode) {
-            if (event.text.length > 0 && event.text[0].match(/[a-z0-9]/i)) {
-                root.startInteraction()
-                event.accepted = true
-            }
-        }
-    }
+    Keys.onReturnPressed: (event) => { if (!root.interactionMode) { startInteraction(); event.accepted = true } }
+    Keys.onEnterPressed: (event) => { if (!root.interactionMode) { startInteraction(); event.accepted = true } }
+    Keys.onPressed: (event) => { if (!root.interactionMode) { if (event.text.length > 0 && event.text[0].match(/[a-z0-9]/i)) { startInteraction(); event.accepted = true } } }
 }

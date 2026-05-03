@@ -4,20 +4,22 @@ import Qt5Compat.GraphicalEffects
 import Qt.labs.folderlistmodel
 import SddmComponents 2.0
 
-// Minecraft Theme — Final Polished Refactor
 Rectangle {
     id: root
     readonly property real s: Screen.height / 768
     width: Screen.width; height: Screen.height
     color: "#1e1e1e"
 
-    // --- State Properties ---
-    property int sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // State
+    property int sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     property int userIndex: 0
     property bool sessionPopupOpen: false
     property real uiOpacity: 0
     
-    // --- Minecraft Color Palette ---
+    // Colors
     readonly property color mcBtnFace:      "#8b8b8b"
     readonly property color mcBtnHighlight: "#bcbcbc"
     readonly property color mcBtnShadow:    "#373737"
@@ -34,7 +36,7 @@ Rectangle {
     readonly property color mcFldBg:        "#000000"
     readonly property color mcFldBorder:    "#a0a0a0"
 
-    // --- Fonts ---
+    // Fonts
     FolderListModel { id: fontFolder; folder: Qt.resolvedUrl("font"); nameFilters: ["*.ttf", "*.otf"] }
     FontLoader { id: mcFont; source: fontFolder.count > 0 ? "font/" + fontFolder.get(0, "fileName") : "" }
     TextConstants { id: textConstants }
@@ -50,7 +52,7 @@ Rectangle {
         }
     }
 
-    // Vignette
+    // Effect
     RadialGradient {
         anchors.fill: parent; z: 1
         gradient: Gradient {
@@ -59,27 +61,27 @@ Rectangle {
         }
     }
 
-    // --- Standard Bridges (Quickshell Compatibility) ---
+    // Helpers
     ListView {
         id: sessionHelper
-        model: sessionModel; currentIndex: root.sessionIndex
+        model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex
         opacity: 0; width: 100; height: 100; z: -100; visible: true
         delegate: Item { property string sName: model.name || ""; property string sComment: model.comment || "" }
     }
     ListView {
         id: userHelper
-        model: userModel; currentIndex: root.userIndex
+        model: typeof userModel !== "undefined" ? userModel : null; currentIndex: root.userIndex
         opacity: 0; width: 100; height: 100; z: -100; visible: true
         delegate: Item { property string uName: model.realName || model.name || ""; property string uLogin: model.name || "" }
     }
 
-    // --- Main UI Layout ---
+    // Interface
     Column {
         id: mainStack
         anchors.centerIn: parent
         width: 420 * s; spacing: 20 * s; opacity: root.uiOpacity
 
-        // --- Minecraft Logo Header ---
+        // Logo
         Item {
             width: parent.width; height: 200 * s
             Image {
@@ -96,7 +98,6 @@ Rectangle {
                 }
             }
 
-            // Animated Splash (Overlapping the top-right corner)
             Text {
                 id: splashText
                 anchors.horizontalCenter: mainLogo.horizontalCenter; anchors.horizontalCenterOffset: 255 * s
@@ -118,7 +119,7 @@ Rectangle {
 
         Item { width: 1; height: 12 * s } 
 
-        // Username Area
+        // Target
         Column {
             width: parent.width; spacing: 10 * s
             McText { label: "Logged in as:"; pixelSize: 12 * s; textColor: root.mcTextGray }
@@ -127,18 +128,18 @@ Rectangle {
                 McText {
                     anchors.left: parent.left; anchors.leftMargin: 12 * s
                     anchors.verticalCenter: parent.verticalCenter
-                    label: capitalizeFirst((userHelper.currentItem && userHelper.currentItem.uLogin !== "") ? userHelper.currentItem.uLogin : (userModel.lastUser || "User"))
+                    label: capitalizeFirst((userHelper.currentItem && userHelper.currentItem.uLogin !== "") ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "User"))
                     pixelSize: 18 * s; textColor: root.mcTextWhite
                 }
                 MouseArea {
                     id: userMouse; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
-                    onClicked: root.userIndex = (root.userIndex + 1) % userModel.rowCount()
+                    onClicked: { if (typeof userModel !== "undefined" && userModel.rowCount() > 0) root.userIndex = (root.userIndex + 1) % userModel.rowCount() }
                     property bool isHighlighted: containsMouse || pressed
                 }
             }
         }
 
-        // Password Area
+        // Credentials
         Column {
             width: parent.width; spacing: 10 * s
             McText { label: "Enter Password:"; pixelSize: 12 * s; textColor: root.mcTextGray }
@@ -152,6 +153,7 @@ Rectangle {
                     cursorVisible: false; cursorDelegate: Item { width: 0; height: 0 }
                     selectionColor: root.mcBtnHover
                     property bool wasClicked: false
+                    onTextEdited: errText.text = ""
                     KeyNavigation.tab: loginBtn; KeyNavigation.backtab: rebootBtn
                     Keys.onReturnPressed: doLogin()
                     
@@ -185,15 +187,16 @@ Rectangle {
             }
         }
 
+        // Error
         Text {
             id: errText; width: parent.width; horizontalAlignment: Text.AlignHCenter
+            height: 15 * s; verticalAlignment: Text.AlignBottom
             text: ""; color: root.mcTextRed; font.family: mcFont.name; font.pixelSize: 14 * s
-            visible: text !== ""
         }
 
-        Item { width: 1; height: 10 * s } // Spacer
+        Item { width: 1; height: 10 * s }
 
-        // Action Buttons
+        // Actions
         McButton { 
             id: loginBtn; width: parent.width; height: 48 * s; label: "Login"
             onClicked: doLogin(); KeyNavigation.tab: sessionBtn; KeyNavigation.backtab: passInput
@@ -201,23 +204,24 @@ Rectangle {
 
         McButton {
             id: sessionBtn; width: parent.width; height: 48 * s
-            label: (sessionHelper.currentItem && sessionHelper.currentItem.sName ? sessionHelper.currentItem.sName : "SESSION")
+            visible: !root.isQuickshell
+            label: (typeof sessionModel !== "undefined" && sessionHelper.currentItem && sessionHelper.currentItem.sName ? sessionHelper.currentItem.sName : "SESSION")
             onClicked: root.sessionPopupOpen = true; KeyNavigation.tab: shutdownBtn; KeyNavigation.backtab: loginBtn
         }
 
         Row {
             width: parent.width; spacing: 12 * s
-            McButton { id: shutdownBtn; width: (parent.width - 12 * s) / 2; height: 48 * s; label: "Shutdown"; onClicked: sddm.powerOff(); KeyNavigation.tab: rebootBtn }
-            McButton { id: rebootBtn; width: (parent.width - 12 * s) / 2; height: 48 * s; label: "Reboot"; onClicked: sddm.reboot(); KeyNavigation.tab: passInput }
+            McButton { id: shutdownBtn; width: (parent.width - 12 * s) / 2; height: 48 * s; label: "Shutdown"; onClicked: { if (typeof sddm !== "undefined") sddm.powerOff() } KeyNavigation.tab: rebootBtn }
+            McButton { id: rebootBtn; width: (parent.width - 12 * s) / 2; height: 48 * s; label: "Reboot"; onClicked: { if (typeof sddm !== "undefined") sddm.reboot() } KeyNavigation.tab: passInput }
         }
     }
 
-    // Session Menu
+    // Modal
     Item {
         id: sessionOverlay
-        anchors.fill: parent; visible: root.sessionPopupOpen; z: 5000
+        visible: root.sessionPopupOpen && !root.isQuickshell
+        anchors.fill: parent; z: 5000
         
-        // Overlay Background
         Rectangle { 
             anchors.fill: parent; color: "black"; opacity: 0.9 
             Image { anchors.fill: parent; source: "background.png"; fillMode: Image.Tile; opacity: 0.12; visible: sessionOverlay.visible }
@@ -241,7 +245,7 @@ Rectangle {
             Column {
                 width: parent.width; spacing: 8 * s
                 Repeater {
-                    model: sessionModel
+                    model: typeof sessionModel !== "undefined" ? sessionModel : null
                     McButton {
                         width: 440 * s; height: 50 * s
                         label: model.name || "Default"
@@ -260,7 +264,6 @@ Rectangle {
             }
         }
 
-        // Close on ESC
         Keys.onEscapePressed: root.sessionPopupOpen = false
         focus: visible
     }
@@ -269,7 +272,6 @@ Rectangle {
     Item {
         anchors.fill: parent; opacity: root.uiOpacity
         
-        // Bottom Left
         McText {
             anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.margins: 6 * s
             id: versionText; label: "Current Time: " + Qt.formatTime(new Date(), "HH:mm")
@@ -277,7 +279,6 @@ Rectangle {
             Timer { interval: 1000; running: true; repeat: true; onTriggered: versionText.label = "Current Time: " + Qt.formatTime(new Date(), "HH:mm") }
         }
 
-        // Bottom Right
         McText {
             anchors.bottom: parent.bottom; anchors.right: parent.right; anchors.margins: 6 * s
             label: Qt.formatDate(new Date(), "dddd, MMMM d")
@@ -285,13 +286,13 @@ Rectangle {
         }
     }
 
-    // Fade-In
+    // Boot
     NumberAnimation { id: fadeIn; target: root; property: "uiOpacity"; to: 1; duration: 1000; easing.type: Easing.OutCubic }
     Component.onCompleted: fadeIn.start()
 
     function doLogin() { 
-        var lName = (userHelper.currentItem && userHelper.currentItem.uLogin !== "") ? userHelper.currentItem.uLogin : (userModel.lastUser || "")
-        sddm.login(lName, passInput.text, root.sessionIndex) 
+        var lName = (userHelper.currentItem && userHelper.currentItem.uLogin !== "") ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "")
+        if (typeof sddm !== "undefined") sddm.login(lName, passInput.text, root.sessionIndex) 
     }
     
     function capitalizeFirst(str) {
@@ -299,9 +300,9 @@ Rectangle {
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
-    Connections { target: sddm; function onLoginFailed() { errText.text = "INVALID CREDENTIALS"; passInput.text = ""; passInput.forceActiveFocus() } }
+    Connections { target: typeof sddm !== "undefined" ? sddm : null; function onLoginFailed() { errText.text = "ACCESS DENIED"; passInput.text = ""; passInput.forceActiveFocus() } }
 
-    // Components
+    // Widgets
     component McText: Item {
         property string label: ""; property int pixelSize: 16 * s; property color textColor: root.mcTextWhite
         property int horizontalAlignment: Text.AlignLeft
@@ -337,7 +338,6 @@ Rectangle {
                 anchors.fill: parent; anchors.margins: 2 * s
                 color: mcMouse.pressed ? root.mcBtnPress : (mcMouse.containsMouse ? "#686868" : (mcBtn.isActive ? "#454545" : root.mcBtnFace))
                 
-                // 3D Bevels
                 Rectangle { anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; height: 3 * s; color: "white"; opacity: mcMouse.pressed ? 0.1 : (mcMouse.containsMouse ? 0.4 : 0.2) }
                 Rectangle { anchors.top: parent.top; anchors.left: parent.left; anchors.bottom: parent.bottom; width: 3 * s; color: "white"; opacity: mcMouse.pressed ? 0.1 : (mcMouse.containsMouse ? 0.4 : 0.2) }
                 Rectangle { anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right; height: 3 * s; color: "black"; opacity: 0.4 }
@@ -346,10 +346,9 @@ Rectangle {
                 McText { 
                     anchors.centerIn: parent
                     label: mcBtn.label; textColor: mcMouse.containsMouse ? root.mcTextYellow : root.mcTextWhite; pixelSize: 18 * s 
-                    shadowOffset: mcMouse.pressed ? 3 * s : 2 * s // Text "sinks" into button
+                    shadowOffset: mcMouse.pressed ? 3 * s : 2 * s
                 }
             }
-            // Removed Hover Outline for "Humble" Dark Look
         }
         MouseArea { id: mcMouse; anchors.fill: parent; hoverEnabled: true; onClicked: mcBtn.clicked() }
     }

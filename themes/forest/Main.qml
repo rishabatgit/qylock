@@ -11,12 +11,16 @@ Item {
     width: 1920; height: 1080
     readonly property real s: width / 1920
     
-    // THEME COLORS
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // Colors
     readonly property color fgColor: "#ffffff"
     readonly property color accentColor: "#d3eaad" 
     
-    property int userIndex: userModel.lastIndex >= 0 ? userModel.lastIndex : 0
-    property int sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    // State
+    property int userIndex: (typeof userModel !== "undefined" && userModel.lastIndex >= 0) ? userModel.lastIndex : 0
+    property int sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     property real uiOpacity: 0
     property bool sessionPopupOpen: false
     property bool userPopupOpen: false
@@ -24,20 +28,30 @@ Item {
     onUserPopupOpenChanged: if (userPopupOpen) sessionPopupOpen = false
     onSessionPopupOpenChanged: if (sessionPopupOpen) userPopupOpen = false
 
+    // Fonts
     FolderListModel { id: fontFolder; folder: Qt.resolvedUrl("font"); nameFilters: ["*.ttf", "*.otf"] }
     FontLoader { id: mainFont; source: fontFolder.count > 0 ? "font/" + fontFolder.get(0, "fileName") : "" }
 
     function capitalize(str) { if (!str) return ""; return str.charAt(0).toUpperCase() + str.slice(1); }
+    
+    // Login
     function login() { 
-        var lName = (userHelper.currentItem && userHelper.currentItem.uLogin !== "") ? userHelper.currentItem.uLogin : (userModel.lastUser || "")
-        sddm.login(lName, passInput.text, root.sessionIndex) 
+        var lName = (userHelper.currentItem && userHelper.currentItem.uLogin !== "") ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "")
+        if (typeof sddm !== "undefined") sddm.login(lName, passInput.text, root.sessionIndex) 
     }
     
-    Connections { target: sddm; function onLoginFailed() { root.loginError = true; passInput.text = ""; passInput.forceActiveFocus() } }
+    Connections { 
+        target: typeof sddm !== "undefined" ? sddm : null
+        function onLoginFailed() { 
+            errText.text = "ACCESS DENIED"
+            passInput.text = ""
+            passInput.forceActiveFocus() 
+        } 
+    }
 
     Timer { interval: 300; running: true; onTriggered: passInput.forceActiveFocus() }
 
-    // BACKGROUND ENGINE
+    // Background
     Rectangle { anchors.fill: parent; color: "#010801"; z: -1000 }
     
     MediaPlayer {
@@ -48,7 +62,7 @@ Item {
     VideoOutput { id: bgVideo; anchors.fill: parent; fillMode: VideoOutput.PreserveAspectCrop; z: -500 }
 
 
-    // GLASS ENGINE
+    // Glass
     ShaderEffectSource { id: baseVideoSource; sourceItem: bgVideo; visible: false; live: true; recursive: false }
     FastBlur { id: globalGlassBlur; anchors.fill: parent; source: baseVideoSource; radius: 96; z: -1000; visible: true }
 
@@ -124,7 +138,7 @@ Item {
         OpacityMask { anchors.fill: parent; source: bottomRimSrc; maskSource: bottomRimMask }
     }
 
-    // CLOCK SECTION
+    // Clock
     Item {
         id: clockPebble
         x: 100 * s; y: 100 * s
@@ -150,14 +164,14 @@ Item {
         }
     }
 
-    // LOGIN SECTION
+    // Widget
     Item {
         id: mainPanelStack
         anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 100 * s
         width: 440 * s; height: 335 * s
         opacity: root.uiOpacity
 
-        // USER BLOCK
+        // Users
         Item {
             id: userMorpher; width: parent.width; height: root.userPopupOpen ? 325 * s : 75 * s; y: 0
             opacity: root.sessionPopupOpen ? 0.0 : 1.0; z: root.userPopupOpen ? 100 : 1
@@ -180,19 +194,19 @@ Item {
                 visible: userMorpher.morphRatio < 0.99; opacity: 1.0 - userMorpher.morphRatio
                 Rectangle {
                     width: 45 * s; height: 45 * s; radius: 22.5 * s; color: root.accentColor; anchors.verticalCenter: parent.verticalCenter
-                    Text { anchors.centerIn: parent; text: (userHelper.currentItem && userHelper.currentItem.uName ? userHelper.currentItem.uName[0] : "A").toUpperCase(); font.pixelSize: 18 * s; font.weight: Font.Black; color: "#0d1b0d" }
+                    Text { anchors.centerIn: parent; text: ((userHelper.currentItem && userHelper.currentItem.uName) ? userHelper.currentItem.uName[0] : (typeof userModel !== "undefined" && userModel.lastUser ? userModel.lastUser[0] : "A")).toUpperCase(); font.pixelSize: 18 * s; font.weight: Font.Black; color: "#0d1b0d" }
                 }
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
                     Text { text: "WELCOME BACK"; font.family: mainFont.name; font.pixelSize: 12 * s; color: "white"; opacity: 0.5; font.letterSpacing: 2 * s }
-                    Text { text: (userHelper.currentItem && userHelper.currentItem.uName ? userHelper.currentItem.uName : "USER").toUpperCase(); font.family: mainFont.name; font.pixelSize: 22 * s; font.weight: Font.Bold; color: "white"; font.letterSpacing: 1 * s }
+                    Text { text: ((userHelper.currentItem && userHelper.currentItem.uName) ? userHelper.currentItem.uName : (typeof userModel !== "undefined" && userModel.lastUser ? userModel.lastUser : "USER")).toUpperCase(); font.family: mainFont.name; font.pixelSize: 22 * s; font.weight: Font.Bold; color: "white"; font.letterSpacing: 1 * s }
                 }
             }
             Column {
                 anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 20 * s; visible: opacity > 0.01; opacity: userMorpher.morphRatio; spacing: 15 * s
                 Text { text: "ACCOUNT"; font.family: mainFont.name; font.pixelSize: 13 * s; color: root.accentColor; anchors.horizontalCenter: parent.horizontalCenter; font.letterSpacing: 3 * s; opacity: 0.8 }
                 ListView {
-                    width: parent.width; height: 120 * s; model: userModel; clip: true; spacing: 5 * s
+                    width: parent.width; height: 120 * s; model: typeof userModel !== "undefined" ? userModel : null; clip: true; spacing: 5 * s
                     delegate: Item {
                         width: parent.width; height: 35 * s
                         Rectangle { anchors.fill: parent; radius: 10 * s; color: "#1affffff"; visible: innerUserMouse.containsMouse || index === root.userIndex; opacity: (innerUserMouse.containsMouse || index === root.userIndex) ? 1.0 : 0.0 }
@@ -209,7 +223,7 @@ Item {
             Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
         }
 
-        // PASS FIELD
+        // Target
         Item {
             id: passwordCard; width: parent.width; height: 75 * s; y: 95 * s
             opacity: (root.sessionPopupOpen || root.userPopupOpen) ? 0.0 : 1.0
@@ -227,13 +241,24 @@ Item {
                 verticalAlignment: TextInput.AlignVCenter; echoMode: TextInput.Password; passwordCharacter: "●"
                 font.family: mainFont.name; font.pixelSize: 22 * s; color: root.accentColor; clip: true; focus: true; selectionColor: "white"
                 font.letterSpacing: 4 * s; onAccepted: root.login()
+                onTextEdited: errText.text = ""
                 property bool wasClicked: false
                 onActiveFocusChanged: if (!activeFocus && text.length === 0) wasClicked = false
                 cursorVisible: false; cursorDelegate: Item { width: 0; height: 0 }
                 Text { 
                     text: "Enter Passcode"; anchors.fill: parent; verticalAlignment: Text.AlignVCenter; color: "white"; font.italic: true; font.pixelSize: 18 * s
-                    opacity: passInput.text.length === 0 ? 0.3 : 0
+                    opacity: (passInput.text.length === 0 && errText.text === "") ? 0.3 : 0
                     Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutSine } }
+                }
+                Text {
+                    id: errText
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: 25 * s
+                    text: ""
+                    color: "#ff6666"
+                    font.family: mainFont.name
+                    font.pixelSize: 9 * s
+                    font.letterSpacing: 2 * s
                 }
                 Rectangle {
                     id: customCursor
@@ -258,9 +283,9 @@ Item {
             }
         }
 
-        // ENTER KEY
+        // Enter
         Item {
-            anchors.right: parent.right; anchors.rightMargin: 15 * s; y: 95 * s + 15 * s // Centered in the 75px row
+            anchors.right: parent.right; anchors.rightMargin: 15 * s; y: 95 * s + 15 * s
             width: 44 * s; height: 1.0 * width; z: 50
             opacity: (root.sessionPopupOpen || root.userPopupOpen) ? 0.0 : (passInput.text.length > 0 ? 1.0 : 0.0)
             scale: innerLoginMouse.containsMouse ? 1.15 : 1.0; Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
@@ -273,9 +298,11 @@ Item {
             MouseArea { id: innerLoginMouse; anchors.fill: parent; hoverEnabled: true; onClicked: root.login(); cursorShape: Qt.PointingHandCursor }
         }
 
-        // SESSION AREA
+        // Sessions
         Item {
-            id: sessionMorpher; width: parent.width; height: root.sessionPopupOpen ? 335 * s : 75 * s; y: root.sessionPopupOpen ? 0 : 190 * s
+            id: sessionMorpher
+            visible: !root.isQuickshell
+            width: parent.width; height: root.sessionPopupOpen ? 335 * s : 75 * s; y: root.sessionPopupOpen ? 0 : 190 * s
             opacity: root.userPopupOpen ? 0.0 : 1.0; z: root.sessionPopupOpen ? 100 : 1
             Behavior on opacity { NumberAnimation { duration: 400 } }
             Behavior on y { NumberAnimation { duration: 500; easing.type: Easing.OutQuart } }
@@ -296,7 +323,7 @@ Item {
                 anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 20 * s; visible: opacity > 0.01; opacity: sessionMorpher.morphRatio; spacing: 15 * s
                 Text { text: "SESSION"; font.family: mainFont.name; font.pixelSize: 13 * s; color: root.accentColor; anchors.horizontalCenter: parent.horizontalCenter; font.letterSpacing: 3 * s; opacity: 0.8 }
                 ListView {
-                    width: parent.width; height: 120 * s; model: sessionModel; clip: true; spacing: 5 * s
+                    width: parent.width; height: 120 * s; model: typeof sessionModel !== "undefined" ? sessionModel : null; clip: true; spacing: 5 * s
                     delegate: Item {
                         width: parent.width; height: 35 * s
                         Rectangle { anchors.fill: parent; radius: 10 * s; color: "#1affffff"; visible: innerSessMouse.containsMouse || index === root.sessionIndex; opacity: (innerSessMouse.containsMouse || index === root.sessionIndex) ? 1.0 : 0.0 }
@@ -310,7 +337,7 @@ Item {
             Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
         }
 
-        // ACTION BUTTONS
+        // Actions
         Row {
             width: parent.width; height: 50 * s; y: 285 * s; spacing: 20 * s
             opacity: (root.sessionPopupOpen || root.userPopupOpen) ? 0.0 : 1.0
@@ -318,20 +345,23 @@ Item {
             Item { id: rebootBtn; x:0; y:0; width: (parent.width / 2) - 10 * s; height: 50 * s; layer.enabled: true; layer.effect: DropShadow { transparentBorder: true; color: "#35000000"; radius: 25*s; verticalOffset: 8 * s }
                 LiquidGlass { glassRadius: 18 * s; blurBrightness: restMouse.containsMouse ? 0.20 : 0.10; glassTint: "#30101a10"; topRimColor: "#ccffffff" }
                 Text { anchors.centerIn: parent; text: "REBOOT"; font.family: mainFont.name; font.pixelSize: 15 * s; font.weight: Font.DemiBold; color: "white"; opacity: restMouse.containsMouse ? 1.0 : 0.8 }
-                MouseArea { id: restMouse; anchors.fill: parent; hoverEnabled: true; onClicked: sddm.reboot(); cursorShape: Qt.PointingHandCursor; onPressed: rebootBtn.scale = 0.98; onReleased: rebootBtn.scale = 1.0 }
+                MouseArea { id: restMouse; anchors.fill: parent; hoverEnabled: true; onClicked: { if (typeof sddm !== "undefined") sddm.reboot() } cursorShape: Qt.PointingHandCursor; onPressed: rebootBtn.scale = 0.98; onReleased: rebootBtn.scale = 1.0 }
                 Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
             }
             Item { id: powerBtn; x:0; y:0; width: (parent.width / 2) - 10 * s; height: 50 * s; layer.enabled: true; layer.effect: DropShadow { transparentBorder: true; color: "#35000000"; radius: 25*s; verticalOffset: 8 * s }
                 LiquidGlass { glassRadius: 18 * s; blurBrightness: shutMouse.containsMouse ? 0.20 : 0.10; glassTint: "#30101a10"; topRimColor: "#ccffffff" }
                 Text { anchors.centerIn: parent; text: "POWER"; font.family: mainFont.name; font.pixelSize: 15 * s; font.weight: Font.DemiBold; color: "white"; opacity: shutMouse.containsMouse ? 1.0 : 0.8 }
-                MouseArea { id: shutMouse; anchors.fill: parent; hoverEnabled: true; onClicked: sddm.powerOff(); cursorShape: Qt.PointingHandCursor; onPressed: powerBtn.scale = 0.98; onReleased: powerBtn.scale = 1.0 }
+                MouseArea { id: shutMouse; anchors.fill: parent; hoverEnabled: true; onClicked: { if (typeof sddm !== "undefined") sddm.powerOff() } cursorShape: Qt.PointingHandCursor; onPressed: powerBtn.scale = 0.98; onReleased: powerBtn.scale = 1.0 }
                 Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
             }
         }
     }
 
-    ListView { id: sessionHelper; model: sessionModel; currentIndex: root.sessionIndex; opacity: 0; width: 1; height: 1; z: -100; delegate: Item { property string sName: model.name || "" } }
-    ListView { id: userHelper; model: userModel; currentIndex: root.userIndex; opacity: 0; width: 1; height: 1; z: -100; delegate: Item { property string uName: model.realName || model.name || ""; property string uLogin: model.name || "" } }
+    // Helpers
+    ListView { id: sessionHelper; model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex; opacity: 0; width: 1; height: 1; z: -100; delegate: Item { property string sName: model.name || "" } }
+    ListView { id: userHelper; model: typeof userModel !== "undefined" ? userModel : null; currentIndex: root.userIndex; opacity: 0; width: 1; height: 1; z: -100; delegate: Item { property string uName: model.realName || model.name || ""; property string uLogin: model.name || "" } }
+    
+    // Boot
     NumberAnimation { id: fadeIn; target: root; property: "uiOpacity"; to: 1; duration: 2500; easing.type: Easing.OutCubic }
     Component.onCompleted: fadeIn.start()
 }

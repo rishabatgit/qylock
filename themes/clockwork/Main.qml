@@ -4,7 +4,7 @@ import Qt5Compat.GraphicalEffects
 import Qt.labs.folderlistmodel
 import SddmComponents 2.0
 
-// Clockwork Theme
+// Theme
 Rectangle {
     id: root
     readonly property real s: Screen.height / 768
@@ -12,7 +12,10 @@ Rectangle {
     height: Screen.height
     color: root.bgColor
 
-    // Theme Config
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // Config
     readonly property string themeMode: config.themeMode || "dark"
     readonly property bool enableWindup: config.enableWindup === "true"
     readonly property bool isLight: themeMode === "light"
@@ -29,15 +32,15 @@ Rectangle {
     readonly property color userItemInactive: isLight ? "#cccccc" : "#444"
     readonly property color inputWaitColor: isLight ? "#bbbbbb" : "#333333"
 
-    // State Props
-    property int sessionIndex: (sessionModel && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
-    property int userIndex: (userModel && userModel.lastIndex >= 0) ? userModel.lastIndex : 0
+    // State
+    property int sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
+    property int userIndex: (typeof userModel !== "undefined" && userModel.lastIndex >= 0) ? userModel.lastIndex : 0
     property bool userMenuOpen: false
     property bool isWindup: false
     property real uiOpacity: 0
     readonly property real marginR: 80 * s
 
-    // Time Engine
+    // Time
     property int curH: new Date().getHours()
     property int curM: new Date().getMinutes()
     property int curS: new Date().getSeconds()
@@ -57,7 +60,7 @@ Rectangle {
         }
     }
 
-    // Blast Engine
+    // Animation
     property real windupOffset: 0
     property real windupProgress: windupOffset / 150000
     property real boomScale: 1.0
@@ -109,7 +112,7 @@ Rectangle {
     readonly property real smoothSecAngle: -((localTimeMS % 60000) / 60000.0) * 360.0 - windupOffset * 10.0
     readonly property real smoothMinAngle: -((localTimeMS % 3600000) / 3600000.0) * 360.0 - windupOffset * 5.0
 
-    // Assets
+    // Fonts
     FolderListModel {
         id: fontFolder
         folder: Qt.resolvedUrl("font")
@@ -123,10 +126,10 @@ Rectangle {
         id: textConstants
     }
 
-    // Bridges
+    // Models
     ListView {
         id: userHelper
-        model: userModel
+        model: typeof userModel !== "undefined" ? userModel : null
         currentIndex: root.userIndex
         width: 1
         height: 1
@@ -138,7 +141,7 @@ Rectangle {
     }
     ListView {
         id: sessionHelper
-        model: sessionModel
+        model: typeof sessionModel !== "undefined" ? sessionModel : null
         currentIndex: root.sessionIndex
         width: 1
         height: 1
@@ -148,7 +151,7 @@ Rectangle {
         }
     }
 
-    // Autofocus 
+    // Focus
     Timer { interval: 300; running: true; onTriggered: passInput.forceActiveFocus() }
 
     Component.onCompleted: {
@@ -163,7 +166,7 @@ Rectangle {
         easing.type: Easing.OutCubic
     }
 
-    // CORE CLOCKWORK
+    // Core
     Item {
         id: blastContainer
         anchors.fill: parent
@@ -172,7 +175,7 @@ Rectangle {
         y: root.jitterY
         transform: Scale {
             origin.x: 400 * s
-            origin.y: parent.height * 0.5
+            origin.y: blastContainer.height * 0.5
             xScale: root.boomScale
             yScale: root.boomScale
         }
@@ -342,7 +345,7 @@ Rectangle {
         }
     }
 
-    // Whiteout
+    // Flash
     Rectangle {
         anchors.fill: parent
         color: root.blastColor
@@ -350,7 +353,7 @@ Rectangle {
         z: 9999
     }
 
-    // State HUD
+    // UI
     Item {
         id: hudContainer
         anchors.fill: parent
@@ -362,12 +365,14 @@ Rectangle {
             anchors.topMargin: 50 * s
             spacing: 25 * s
             CwAction {
+                visible: !root.isQuickshell
                 label: (sessionHelper.currentItem ? sessionHelper.currentItem.sName : "Session")
                 onClicked: {
-                    root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount()
+                    if (typeof sessionModel !== "undefined") root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount()
                 }
             }
             Rectangle {
+                visible: !root.isQuickshell
                 width: 1 * s
                 height: 10 * s
                 color: root.pillBorder
@@ -376,7 +381,7 @@ Rectangle {
             CwAction {
                 label: "Reboot"
                 onClicked: {
-                    sddm.reboot()
+                    if (typeof sddm !== "undefined") sddm.reboot()
                 }
             }
             Rectangle {
@@ -388,7 +393,7 @@ Rectangle {
             CwAction {
                 label: "Shutdown"
                 onClicked: {
-                    sddm.powerOff()
+                    if (typeof sddm !== "undefined") sddm.powerOff()
                 }
             }
         }
@@ -410,7 +415,7 @@ Rectangle {
                     anchors.bottomMargin: 15 * s
                     anchors.right: parent.right
                     width: 280 * s
-                    height: root.userMenuOpen ? (userModel.rowCount() * 30 * s) + 20 * s : 0
+                    height: root.userMenuOpen ? ((typeof userModel !== "undefined" ? userModel.rowCount() : 0) * 30 * s) + 20 * s : 0
                     clip: true
                     Behavior on height {
                         NumberAnimation {
@@ -423,7 +428,7 @@ Rectangle {
                         anchors.right: parent.right
                         spacing: 6 * s
                         Repeater {
-                            model: userModel
+                            model: typeof userModel !== "undefined" ? userModel : null
                             delegate: Item {
                                 width: 260 * s
                                 height: 26 * s
@@ -475,7 +480,7 @@ Rectangle {
                     id: userNameDisp
                     anchors.right: parent.right
                     anchors.rightMargin: (uMa.containsMouse || root.userMenuOpen) ? 25 * s : 0
-                    text: ((userHelper.currentItem && userHelper.currentItem.uName) ? userHelper.currentItem.uName : (userModel.lastUser ? capitalizeFirst(userModel.lastUser) : "USER")).toUpperCase()
+                    text: ((userHelper.currentItem && userHelper.currentItem.uName) ? userHelper.currentItem.uName : ((typeof userModel !== "undefined" && userModel.lastUser) ? capitalizeFirst(userModel.lastUser) : "USER")).toUpperCase()
                     font.family: outfitFont.name
                     font.pixelSize: 18 * s
                     font.weight: Font.Bold
@@ -630,6 +635,8 @@ Rectangle {
             Text {
                 id: errText
                 width: parent.width
+                height: 15 * s
+                verticalAlignment: Text.AlignBottom
                 horizontalAlignment: Text.AlignRight
                 text: ""
                 color: "#ff4444"
@@ -647,39 +654,31 @@ Rectangle {
             boomSequence.start()
         }
     }
-    Timer {
-        id: loginCommitTimer
-        interval: 1600
-        onTriggered: {
-            doLogin()
-        }
-    }
     function startLoginSequence() {
         if (passInput.text.length === 0) return
-        if (root.enableWindup) {
-            isWindup = true
-            windupAnim.start()
-            boomTriggerTimer.start()
-            loginCommitTimer.start()
-        } else {
-            doLogin()
-        }
+        doLogin()
     }
     function doLogin() {
-        var uname = (userHelper.currentItem && userHelper.currentItem.uLogin) ? userHelper.currentItem.uLogin : userModel.lastUser
-        sddm.login(uname, passInput.text, root.sessionIndex)
+        var uname = (userHelper.currentItem && userHelper.currentItem.uLogin) ? userHelper.currentItem.uLogin : (typeof userModel !== "undefined" ? userModel.lastUser : "user")
+        if (typeof sddm !== "undefined") sddm.login(uname, passInput.text, root.sessionIndex)
     }
     function capitalizeFirst(str) {
         if (!str) return ""
         return str.charAt(0).toUpperCase() + str.slice(1)
     }
     Connections {
-        target: sddm
+        target: typeof sddm !== "undefined" ? sddm : null
+        function onLoginSucceeded() {
+            if (root.enableWindup) {
+                isWindup = true
+                windupAnim.start()
+                boomTriggerTimer.start()
+            }
+        }
         function onLoginFailed() {
             isWindup = false
             windupAnim.stop()
             boomTriggerTimer.stop()
-            loginCommitTimer.stop()
             root.windupOffset = 0
             root.boomScale = 1.0
             root.boomOpacity = 0.0

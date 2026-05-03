@@ -1,4 +1,3 @@
-// Ninja Gaiden Theme
 import QtQuick
 import QtQuick.Window
 import Qt.labs.folderlistmodel
@@ -12,12 +11,17 @@ Rectangle {
 
     readonly property real s: Screen.height / 768
 
+    // Colors
     readonly property color cFg:       "#FFFFFF"
     readonly property color cFgDim:    "#4A4A4A"
     readonly property color cRed:      "#CC0020"
     readonly property color cBacking:  "#0D0003"
 
-    property int sessionIndex: sessionModel && sessionModel.lastIndex >= 0 ? sessionModel.lastIndex : 0
+    // Quickshell
+    property bool isQuickshell: typeof sddm === "undefined" || sddm.hostName === undefined
+
+    // State
+    property int sessionIndex: (typeof sessionModel !== "undefined" && sessionModel.lastIndex >= 0) ? sessionModel.lastIndex : 0
     property string currentTime: Qt.formatTime(new Date(), "hh:mm")
     property string currentDate: Qt.formatDate(new Date(), "yyyy.MM.dd")
     property int currentMenu: 0
@@ -25,6 +29,7 @@ Rectangle {
 
     TextConstants { id: textConstants }
 
+    // Fonts
     FolderListModel {
         id: fontFolder
         folder: Qt.resolvedUrl("font")
@@ -33,7 +38,7 @@ Rectangle {
     FontLoader { id: customFont; source: fontFolder.count > 0 ? "font/" + fontFolder.get(0, "fileName") : "" }
     readonly property string fn: customFont.name
 
-    // Auto-focus fix for Quickshell (Loader does not propagate focus: true)
+    // Focus
     Timer { interval: 300; running: true; onTriggered: pwInput.forceActiveFocus() }
 
     Timer {
@@ -44,13 +49,15 @@ Rectangle {
         }
     }
 
+    // Helpers
     ListView {
         id: sessionHelper
-        model: sessionModel; currentIndex: root.sessionIndex
+        model: typeof sessionModel !== "undefined" ? sessionModel : null; currentIndex: root.sessionIndex
         visible: true; width: 1; height: 1; opacity: 0; z: -100
         delegate: Item { property string sName: model.name || "" }
     }
 
+    // Background
     Image {
         anchors.fill: parent
         source: config.background
@@ -60,6 +67,7 @@ Rectangle {
         mipmap: true
     }
 
+    // Effect
     Item {
         x: 0; y: 0
         width: root.width * 0.40
@@ -107,6 +115,7 @@ Rectangle {
         }
     }
 
+    // Header
     Item {
         anchors.top: parent.top;    anchors.topMargin:   50 * s
         anchors.right: parent.right; anchors.rightMargin: 50 * s
@@ -202,6 +211,7 @@ Rectangle {
         }
     }
 
+    // Interface
     Item {
         anchors.bottom: parent.bottom; anchors.bottomMargin: 40 * s
         anchors.right:  parent.right;  anchors.rightMargin:  50 * s
@@ -281,6 +291,7 @@ Rectangle {
         }
     }
 
+    // Modal
     Item {
         id: mainMenuContainer
         width: 600 * s
@@ -375,7 +386,7 @@ Rectangle {
                 width: parent.width; height: 32 * s; y: 0
                 Text {
                     visible: menuList.currentIndex !== 0
-                    text: userModel && userModel.count > 0 ? userModel.data(userModel.index(root.currentUserIndex, 0), Qt.UserRole + 1) : "—"
+                    text: typeof userModel !== "undefined" && userModel.count > 0 ? userModel.data(userModel.index(root.currentUserIndex, 0), Qt.UserRole + 1) : "—"
                     font.family: root.fn; font.pixelSize: 12 * s
                     color: root.cFgDim
                     anchors.left: parent.left; anchors.leftMargin: 14 * s
@@ -384,9 +395,9 @@ Rectangle {
                 ListView {
                     visible: menuList.currentIndex === 0
                     anchors.fill: parent; anchors.leftMargin: 14 * s
-                    model: userModel; orientation: ListView.Horizontal; spacing: 14 * s
+                    model: typeof userModel !== "undefined" ? userModel : null; orientation: ListView.Horizontal; spacing: 14 * s
                     delegate: Text {
-                        text: model.name || model.realName
+                        text: model.realName || model.name || ""
                         color: root.currentUserIndex === index ? root.cFg : root.cFgDim
                         font.family: root.fn; font.pixelSize: 12 * s
                         anchors.verticalCenter: parent.verticalCenter
@@ -424,6 +435,7 @@ Rectangle {
                         cursorVisible: false; cursorDelegate: Item { width: 0; height: 0 }
                         selectionColor: root.cRed
                         property bool wasClicked: false
+                        onTextEdited: errText.text = ""
                         Text {
                             text: "Enter passcode..."
                             opacity: parent.text.length === 0 ? 1 : 0
@@ -463,14 +475,24 @@ Rectangle {
                         width: parent.width - 28 * s; height: 1
                         color: root.cRed; opacity: 0.5
                     }
+                    Text {
+                        id: errText
+                        anchors.top: parent.bottom; anchors.topMargin: 2 * s
+                        anchors.left: parent.left; anchors.leftMargin: 14 * s
+                        height: 10 * s; verticalAlignment: Text.AlignTop
+                        text: ""
+                        color: root.cRed
+                        font.family: root.fn; font.pixelSize: 10 * s; font.letterSpacing: 2
+                    }
                 }
             }
 
             Item {
                 width: parent.width; height: 32 * s; y: 64 * s
+                visible: !root.isQuickshell
                 Text {
                     visible: menuList.currentIndex !== 2
-                    text: (sessionModel && sessionModel.count > root.sessionIndex && root.sessionIndex >= 0) ? sessionHelper.currentItem.sName : "Default"
+                    text: (typeof sessionModel !== "undefined" && sessionModel.count > root.sessionIndex && root.sessionIndex >= 0) ? sessionHelper.currentItem.sName : "Default"
                     font.family: root.fn; font.pixelSize: 12 * s
                     color: root.cFgDim
                     anchors.left: parent.left; anchors.leftMargin: 14 * s
@@ -480,14 +502,14 @@ Rectangle {
                     visible: menuList.currentIndex === 2
                     anchors.fill: parent
                     Text {
-                        text: (sessionModel && sessionModel.count > root.sessionIndex && root.sessionIndex >= 0) ? sessionHelper.currentItem.sName : "Default"
+                        text: (typeof sessionModel !== "undefined" && sessionModel.count > root.sessionIndex && root.sessionIndex >= 0) ? sessionHelper.currentItem.sName : "Default"
                         font.family: root.fn; font.pixelSize: 12 * s; color: root.cFg
                         anchors.left: parent.left; anchors.leftMargin: 14 * s
                         anchors.verticalCenter: parent.verticalCenter
                         MouseArea {
                             anchors.fill: parent
                             onClicked: {
-                                if (sessionModel && sessionModel.rowCount() > 0)
+                                if (typeof sessionModel !== "undefined" && sessionModel.rowCount() > 0)
                                     root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount()
                             }
                         }
@@ -510,7 +532,7 @@ Rectangle {
                     anchors.left: parent.left; anchors.leftMargin: 14 * s
                     anchors.verticalCenter: parent.verticalCenter
                     Behavior on color { ColorAnimation { duration: 120 } }
-                    MouseArea { id: rebootMa; anchors.fill: parent; hoverEnabled: true; onClicked: sddm.reboot() }
+                    MouseArea { id: rebootMa; anchors.fill: parent; hoverEnabled: true; onClicked: { if (typeof sddm !== "undefined") sddm.reboot() } }
                 }
             }
 
@@ -523,37 +545,51 @@ Rectangle {
                     anchors.left: parent.left; anchors.leftMargin: 14 * s
                     anchors.verticalCenter: parent.verticalCenter
                     Behavior on color { ColorAnimation { duration: 120 } }
-                    MouseArea { id: pwrMa; anchors.fill: parent; hoverEnabled: true; onClicked: sddm.powerOff() }
+                    MouseArea { id: pwrMa; anchors.fill: parent; hoverEnabled: true; onClicked: { if (typeof sddm !== "undefined") sddm.powerOff() } }
                 }
             }
         }
     }
 
+    // Action
     function handleSelection(index) {
         if (index === 0) {
-            if (userModel && userModel.count > 0)
+            if (typeof userModel !== "undefined" && userModel.count > 0)
                 root.currentUserIndex = (root.currentUserIndex + 1) % userModel.count
         } else if (index === 1) {
             doLogin()
         } else if (index === 2) {
-            if (sessionModel && sessionModel.rowCount() > 0)
+            if (typeof sessionModel !== "undefined" && sessionModel.rowCount() > 0)
                 root.sessionIndex = (root.sessionIndex + 1) % sessionModel.rowCount()
         } else if (index === 3) {
-            sddm.reboot()
+            if (typeof sddm !== "undefined") sddm.reboot()
         } else if (index === 4) {
-            sddm.powerOff()
+            if (typeof sddm !== "undefined") sddm.powerOff()
         }
     }
 
     function doLogin() {
         if (pwInput.text !== "") {
-            var uname = userModel.data(userModel.index(root.currentUserIndex, 0), Qt.UserRole + 1)
-            sddm.login(uname, pwInput.text, root.sessionIndex)
+            var uname = ""
+            if (typeof userModel !== "undefined") {
+                uname = userModel.data(userModel.index(root.currentUserIndex, 0), Qt.UserRole + 1)
+            }
+            if (typeof sddm !== "undefined") sddm.login(uname, pwInput.text, root.sessionIndex)
+        }
+    }
+
+    // Handlers
+    Connections {
+        target: typeof sddm !== "undefined" ? sddm : null
+        function onLoginFailed() {
+            errText.text = "ACCESS DENIED"
+            pwInput.text = ""
+            pwInput.forceActiveFocus()
         }
     }
 
     Component.onCompleted: {
-        if (userModel && userModel.lastIndex >= 0) root.currentUserIndex = userModel.lastIndex
+        if (typeof userModel !== "undefined" && userModel.lastIndex >= 0) root.currentUserIndex = userModel.lastIndex
         pwInput.forceActiveFocus()
     }
 }
