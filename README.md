@@ -232,7 +232,27 @@ If you encounter library errors at the login screen:
         <b>Pixel · Skyscrapers</b><br><br>
         <img src="./Assets/pixel_skyscrapers.gif" width="100%" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"/>
       </td>
-      <td align="center" width="50%" style="padding: so loud..15px; border: none;">
+      <td align="center" width="50%" style="padding: 15px; border: none;">
+        <b>Pixel · Cyberpunk</b><br><br>
+        <img src="./Assets/pixel-cyberpunk.gif" width="100%" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"/>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%" style="padding: 15px; border: none;">
+        <b>Pixel · Emerald</b><br><br>
+        <img src="./Assets/pixel-emerald.gif" width="100%" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"/>
+      </td>
+      <td align="center" width="50%" style="padding: 15px; border: none;">
+        <b>Pixel · Sakura</b><br><br>
+        <img src="./Assets/pixel-sakura.gif" width="100%" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"/>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%" style="padding: 15px; border: none;">
+        <b>Pixel · Waterfall</b><br><br>
+        <img src="./Assets/pixel-waterfall.gif" width="100%" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"/>
+      </td>
+      <td align="center" width="50%" style="padding: 15px; border: none;">
         <b>Enfield</b><br><br>
         <img src="./Assets/enfield.gif" width="100%" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"/>
       </td>
@@ -321,7 +341,7 @@ If you encounter library errors at the login screen:
       <td align="center" width="50%" style="padding: 15px; border: none;">
         <b>NieR: Automata</b><br><br>
         <img src="./Assets/nier_automata.gif" width="100%" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"/>
-      </td>      
+      </td>
       <td align="center" width="50%" style="padding: 15px; border: none;">
         <b>Reverse: 1999 - I</b><br><br>
         <img src="./Assets/R1999_1.gif" width="100%" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"/>
@@ -356,7 +376,6 @@ If you encounter library errors at the login screen:
       </td>
     </tr>
   </table>
-  </table>
 </div>
 
 
@@ -380,7 +399,9 @@ Huge thanks to all the amazing artists for these wallpapers and fonts! Here's wh
 | **Pixel · Coffee** | [MoeWalls](https://moewalls.com/pixel-art/cyberpunk-coffee-pixel-live-wallpaper/) | Pixelify Sans | **Pixel · Munchlax** | [MoeWalls](https://moewalls.com/pixel-art/munchlax-sleeping-on-the-field-pixel-live-wallpaper/) | Pixelify Sans |
 | **Pixel · Dusk City** | [WallsFlow](https://wallsflow.com/live-wallpapers/pixel-art/505-pixel-dusk-city-retro-anime-streets-live-wallpaper.html) | Pixelify Sans | **Pixel · Night City** | [WallsFlow](https://wallsflow.com/live-wallpapers/pixel-art/400-night-city-pixel-art-cyberpunk-live-wallpaper.html) | Pixelify Sans |
 | **Pixel · Hollow Knight** | [MoeWalls](https://moewalls.com/pixel-art/hollow-knight-3-live-wallpaper/) | Pixelify Sans | **Pixel · Rainy Room** | [MoeWalls](https://moewalls.com/pixel-art/pixel-room-rainy-night-live-wallpaper/) | Pixelify Sans |
-| **Pixel · Skyscrapers** | [WallsFlow](https://wallsflow.com/live-wallpapers/pixel-art/61-pixel-city.html) | Pixelify Sans | **Enfield** | [WallsFlow](https://wallsflow.com/live-wallpapers/games/777-arknights-endfield-sakura-sanctuary-live-wallpaper.html) | Orbitron |
+| **Pixel · Skyscrapers** | [WallsFlow](https://wallsflow.com/live-wallpapers/pixel-art/61-pixel-city.html) | Pixelify Sans | **Pixel · Cyberpunk** | - | Pixelify Sans |
+| **Pixel · Emerald** | - | Pixelify Sans | **Pixel · Sakura** | - | Pixelify Sans |
+| **Pixel · Waterfall** | - | Pixelify Sans | **Enfield** | [WallsFlow](https://wallsflow.com/live-wallpapers/games/777-arknights-endfield-sakura-sanctuary-live-wallpaper.html) | Orbitron |
 | **Sword** | [WallsFlow](https://wallsflow.com/live-wallpapers/anime/761-silent-katana-forest-samurai-live-wallpaper.html) | The Last Shuriken | **The Last of Us** | [MoeWalls](https://moewalls.com/games/the-last-of-us-sunset-live-wallpaper/) | Outfit |
 | **Field** | [MoeWalls](https://moewalls.com/anime/fading-away-live-wallpaper/) | - | **Girl · Coffee** | [MoeWalls](https://moewalls.com/anime/chill-afternoon-girl-live-wallpaper/) | - |
 | **Girl · Pillow** | [MoeWalls](https://moewalls.com/anime/lazy-afternoon-girl-live-wallpaper/) | Itim | **Man · Bicycle** | [MoeWalls](https://moewalls.com/landscape/traveling-with-the-bicycle-live-wallpaper/) | Itim |
