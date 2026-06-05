@@ -101,9 +101,22 @@
                   pkgs.coreutils
                 ]}
 
-              # Patch lock.sh so it resolves the theme path from the wrapper's
-              # QYLOCK_THEMES_ROOT instead of ../themes or themes_link.
+              # Patch lock.sh so it (1) resolves the theme path from the wrapper's
+              # QYLOCK_THEMES_ROOT instead of ../themes or themes_link, and
+              # (2) honours the env-provided QS_THEME (with $1 still overriding)
+              # instead of clobbering it via ~/.config/qylock/theme or a
+              # hardcoded fallback.
               substituteInPlace $out/share/qylock/lock.sh \
+                --replace-fail \
+                  'CONFIG_FILE="$HOME/.config/qylock/theme"
+if [ -n "$1" ]; then
+    export QS_THEME="$1"
+elif [ -f "$CONFIG_FILE" ]; then
+    export QS_THEME=$(cat "$CONFIG_FILE")
+else
+    export QS_THEME="nier-automata"
+fi' \
+                  'if [ -n "$1" ]; then export QS_THEME="$1"; fi' \
                 --replace-fail \
                   'if [ -d "$DIR/../themes" ] && [ ! -d "$DIR/themes_link" ]; then
     export QS_THEME_PATH="$DIR/../themes/$QS_THEME"
